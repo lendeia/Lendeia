@@ -91,43 +91,66 @@ function AppShell() {
     const params = new URLSearchParams(window.location.search);
     return !!(params.get("item") || params.get("store"));
   });
-  useEffect(() => {
-    if (!resolvingDeepLink) return;
+
+  // Shared by the initial deep-link resolution below AND the popstate
+  // handler further down (browser back/forward) — previously only ran
+  // once on mount, so navigating with the browser's own back/forward
+  // buttons had no way to actually resolve a different item/store.
+  const resolveFromUrl = async () => {
     const params = new URLSearchParams(window.location.search);
     const itemId = params.get("item");
     const storeId = params.get("store");
-
-    let cancelled = false;
-    (async () => {
-      if (storeId) {
-        setStoreOwnerId(storeId);
-        setPage("store");
-      } else if (itemId) {
-        try {
-          const listing = await getListingIfVisible(itemId);
-          if (!cancelled && listing) {
-            setItem(listing);
-            setPage("details");
-          } else if (!cancelled) {
-            // Listing no longer exists/visible — fall back to Browse
-            // rather than silently landing on the marketing page with
-            // no explanation for why the shared item didn't show up.
-            setPage("browse");
-          }
-        } catch {
-          if (!cancelled) setPage("browse");
+    if (storeId) {
+      setStoreOwnerId(storeId);
+      setPage("store");
+      return;
+    }
+    if (itemId) {
+      try {
+        const listing = await getListingIfVisible(itemId);
+        if (listing) {
+          setItem(listing);
+          setPage("details");
+        } else {
+          setPage("browse");
         }
+      } catch {
+        setPage("browse");
       }
-      if (!cancelled) setResolvingDeepLink(false);
-    })();
+      return;
+    }
+    // No item/store in the URL (e.g. back button past a shared link) —
+    // land somewhere sensible rather than staying on whatever page
+    // React state still happens to hold.
+    setPage("home");
+  };
 
-    return () => { cancelled = true; };
+  useEffect(() => {
+    if (!resolvingDeepLink) return;
+    resolveFromUrl().finally(() => setResolvingDeepLink(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Browser back/forward — previously the app's own navigation never
+  // touched the address bar at all (only the very first page load ever
+  // read it), so back/forward had nothing real to do, and copying the
+  // address bar mid-session always gave just the bare domain regardless
+  // of what was actually on screen.
+  useEffect(() => {
+    const handlePopState = () => { resolveFromUrl(); };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const openItem = (it) => {
     setItem(it);
     setPage("details");
+    // Real URL update — previously the address bar never changed at
+    // all during in-app navigation, so copying it mid-session always
+    // gave just the bare domain no matter what was on screen.
+    window.history.pushState({}, "", `${window.location.pathname}?item=${it.id}`);
   };
   const nav = (p) => {
     setPage(p);
@@ -136,10 +159,17 @@ function AppShell() {
     // land on the conversation list, not silently reuse whichever
     // conversation was last opened via a "Message" button elsewhere.
     setMessageTargetUserId(null);
+    // Clears any ?item=/?store= left over from a previous view — the
+    // address bar should reflect "not viewing a specific item/store"
+    // once you navigate elsewhere.
+    if (window.location.search) {
+      window.history.pushState({}, "", window.location.pathname);
+    }
   };
   const visitStore = (ownerId) => {
     setStoreOwnerId(ownerId);
     setPage("store");
+    window.history.pushState({}, "", `${window.location.pathname}?store=${ownerId}`);
   };
   const messageUser = (otherUserId) => {
     setMessageTargetUserId(otherUserId);
