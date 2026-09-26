@@ -16,7 +16,7 @@
 //   Rendered once by MainLayout.jsx.
 // ==================================================================
 import React, { useEffect, useState } from "react";
-import { Home as HomeIcon, Map as MapIcon, ClipboardList, User, MessageCircle, Bell, X } from "lucide-react";
+import { Home as HomeIcon, Map as MapIcon, ClipboardList, User, MessageCircle, Bell, X, Grid, Plus } from "lucide-react";
 import Button from "./Button";
 import SubscriptionModal from "./SubscriptionModal";
 import { getPlanById } from "./PlanCard";
@@ -237,17 +237,38 @@ export function TopNav({ page, setPage }) {
       <button onClick={() => setPage("home")} className="font-serif text-[18px] md:text-[21px] tracking-tight text-[#17231D] shrink-0">
         Lendeia<span className="text-[#E2932E]">.</span>
       </button>
-      <div className="flex items-center gap-4 md:gap-7 text-[13px] md:text-[14px] text-[#17231D]/75 font-medium">
+      <div className="flex items-center gap-2.5 md:gap-7 text-[13px] md:text-[14px] text-[#17231D]/75 font-medium">
         {/* Home/Map/Rentals are already reachable from the bottom tab
             bar on mobile — showing them again here would just duplicate
             navigation, so they're desktop-only here. Browse isn't in
             the bottom nav anymore (moved up here specifically), so it
-            stays visible on every screen size. */}
+            stays visible on every screen size — as an icon on mobile
+            (previously full text, which was part of what made this bar
+            feel cramped) and text on desktop, same as before. */}
         <span className="hidden md:inline-flex"><NavLink id="home" label="Home" /></span>
-        <NavLink id="browse" label="Browse" />
+        <button
+          onClick={() => setPage("browse")}
+          className={`md:hidden p-1.5 rounded-full transition-colors ${page === "browse" ? "text-[#E2932E]" : "hover:text-[#17231D]"}`}
+          title="Browse"
+        >
+          <Grid size={20} />
+        </button>
+        <span className="hidden md:inline-flex"><NavLink id="browse" label="Browse" /></span>
         <span className="hidden md:inline-flex"><NavLink id="map" label="Map" /></span>
         <span className="hidden md:inline-flex"><NavLink id="dashboard" label="Rentals" /></span>
-        <Button variant="outline" className="!px-3 md:!px-4 !py-1.5 md:!py-2 text-[12px] md:text-[13px]" onClick={() => setPage("list")}>
+
+        {/* List an Item — icon-only on mobile (was a full-text pill
+            button, one of the biggest single contributors to how
+            cramped this bar felt on a narrow screen), full button with
+            label on desktop as before. */}
+        <button
+          onClick={() => setPage("list")}
+          className="md:hidden p-1.5 rounded-full border border-[#17231D]/15 text-[#17231D] hover:border-[#17231D]/30 transition-colors"
+          title="List an Item"
+        >
+          <Plus size={18} />
+        </button>
+        <Button variant="outline" className="hidden md:inline-flex !px-4 !py-2 text-[13px]" onClick={() => setPage("list")}>
           List an Item
         </Button>
 
@@ -269,21 +290,30 @@ export function TopNav({ page, setPage }) {
           </button>
         )}
 
-        <NotificationsBell setPage={setPage} />
-
+        {/* Subscription badge — compact icon-only pill on mobile
+            (previously always showed the full plan name text too,
+            which is exactly the kind of thing that made this bar feel
+            like it had no breathing room on a phone). Full label stays
+            on desktop, unchanged. */}
         {account && !account.isAnonymous && (
           <button
             onClick={() => setShowSubscribe(true)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[12.5px] font-semibold transition-colors ${
+            className={`flex items-center gap-1 px-2.5 md:px-3 py-1.5 rounded-full text-[12.5px] font-semibold transition-colors ${
               plan.id === "free"
                 ? "border border-[#17231D]/15 text-[#6b6f66] hover:border-[#17231D]/30"
                 : "bg-[#E2932E]/15 text-[#8a5a13] border border-[#E2932E]/40"
             }`}
-            title="Manage subscription"
+            title={`${plan.name} plan — manage subscription`}
           >
-            {plan.emoji} {plan.name}
+            <span>{plan.emoji}</span>
+            <span className="hidden md:inline">{plan.name}</span>
           </button>
         )}
+
+        {/* Notifications now sits directly next to the avatar, per
+            explicit request — previously separated from it by the
+            subscription badge in between. */}
+        <NotificationsBell setPage={setPage} />
 
         {account ? (
           <button

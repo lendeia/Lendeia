@@ -1,4 +1,4 @@
-# Lendeia — project structure
+# Renta — project structure
 
 This repo is split into four independent layers:
 

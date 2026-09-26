@@ -130,12 +130,24 @@ function EditListingModal({ item, account, onClose, onSave, saving, error }) {
     e.target.value = "";
     if (!files.length) return;
     setPhotoError(null);
-    if (totalPhotoCount + files.length > plan.maxPhotos) {
+    // Previously rejected the WHOLE batch if it would exceed the plan's
+    // photo limit — selecting several photos at once when you were
+    // close to the cap silently added none of them at all, which felt
+    // exactly like "it just won't add them." Now adds as many as
+    // actually fit, and only shows the limit message if some had to be
+    // left out — matching how the listing CREATION form already
+    // behaves (fits what it can, doesn't reject the whole selection).
+    const remainingSlots = plan.maxPhotos - totalPhotoCount;
+    if (remainingSlots <= 0) {
       setPhotoError(`Your ${plan.name} plan allows up to ${plan.maxPhotos} photos per listing.`);
       return;
     }
-    setNewPhotoFiles((prev) => [...prev, ...files]);
-    setNewPhotoPreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+    const filesToAdd = files.slice(0, remainingSlots);
+    if (filesToAdd.length < files.length) {
+      setPhotoError(`Your ${plan.name} plan allows up to ${plan.maxPhotos} photos per listing — added ${filesToAdd.length} of the ${files.length} you selected.`);
+    }
+    setNewPhotoFiles((prev) => [...prev, ...filesToAdd]);
+    setNewPhotoPreviews((prev) => [...prev, ...filesToAdd.map((f) => URL.createObjectURL(f))]);
   };
 
   const handleRemoveNewPhoto = (index) => {
