@@ -1,0 +1,26 @@
+<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    GRASS TRIMMER — original hand-drawn placeholder illustration.
+    TO EDIT: change fill colors below (background #F3F1EB, line color
+    #17231D, accent cap #E2932E).
+    TO REPLACE WITH A REAL PHOTO: swap the import in the files listed
+    below to a real image path/URL — no other code changes needed.
+    Used in: frontend/pages/Welcome/Welcome.jsx (HERO_IMAGES, SERVICES).
+  -->
+  <rect width="400" height="400" fill="#F3F1EB"/>
+  <g stroke="#17231D" stroke-width="3" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Long shaft -->
+    <path d="M100 120 L280 260" stroke-width="10"/>
+    <!-- Top handle -->
+    <rect x="95" y="105" width="55" height="26" rx="8" transform="rotate(40 122 118)" fill="#FAFAF8"/>
+    <!-- Trigger -->
+    <path d="M150 155 L120 175" />
+    <!-- Trimmer head (amber accent center) -->
+    <circle cx="290" cy="270" r="34" fill="#FAFAF8"/>
+    <circle cx="290" cy="270" r="14" fill="#E2932E" stroke="none"/>
+    <!-- Grass/trim lines flying off the head -->
+    <path d="M270 290 Q260 310 245 300" />
+    <path d="M285 300 Q280 320 265 315" />
+    <path d="M305 295 Q305 318 320 315" />
+  </g>
+</svg>

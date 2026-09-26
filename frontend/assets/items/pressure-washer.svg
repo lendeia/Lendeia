@@ -1,0 +1,29 @@
+<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    PRESSURE WASHER — original hand-drawn placeholder illustration.
+    TO EDIT: change fill colors below (background #F3F1EB, line color
+    #17231D, accent hose #E2932E).
+    TO REPLACE WITH A REAL PHOTO: swap the import in the files listed
+    below to a real image path/URL — no other code changes needed.
+    Used in: frontend/pages/Welcome/Welcome.jsx (HERO_IMAGES, SERVICES).
+  -->
+  <rect width="400" height="400" fill="#F3F1EB"/>
+  <g stroke="#17231D" stroke-width="3" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Main tank body -->
+    <rect x="110" y="150" width="150" height="90" rx="10" fill="#FAFAF8"/>
+    <!-- Handle -->
+    <rect x="130" y="120" width="110" height="34" rx="8" fill="#FAFAF8"/>
+    <!-- Left wheel -->
+    <circle cx="150" cy="270" r="28" fill="#FAFAF8"/>
+    <circle cx="150" cy="270" r="8" fill="#17231D"/>
+    <!-- Right wheel -->
+    <circle cx="230" cy="270" r="28" fill="#FAFAF8"/>
+    <circle cx="230" cy="270" r="8" fill="#17231D"/>
+    <!-- Hose + spray wand (amber accent) -->
+    <path d="M260 190 L320 190" />
+    <path d="M320 190 L320 150" />
+    <path d="M320 150 L290 130" stroke="#E2932E"/>
+    <!-- Small side nozzle -->
+    <rect x="100" y="200" width="16" height="30" rx="3" fill="#FAFAF8"/>
+  </g>
+</svg>

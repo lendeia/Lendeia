@@ -1,0 +1,29 @@
+<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    TENT / CANOPY — original hand-drawn placeholder illustration.
+    TO EDIT: change fill colors below (background #F3F1EB, line color
+    #17231D, flag accent #E2932E).
+    TO REPLACE WITH A REAL PHOTO: swap the import in the files listed
+    below to a real image path/URL — no other code changes needed.
+    Used in: frontend/pages/Welcome/Welcome.jsx (HERO_IMAGES, SERVICES,
+    ABOUT_IMAGE).
+  -->
+  <rect width="400" height="400" fill="#F3F1EB"/>
+  <g stroke="#17231D" stroke-width="3" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Main tent triangle -->
+    <path d="M200 110 L300 280 L100 280 Z" fill="#FAFAF8"/>
+    <!-- Center seam -->
+    <path d="M200 110 L200 280" />
+    <!-- Entrance flap -->
+    <path d="M170 280 L200 190 L230 280" fill="#F3F1EB"/>
+    <!-- Ground line -->
+    <path d="M100 280 L305 280" stroke-width="4"/>
+    <!-- Guy lines + stakes -->
+    <path d="M300 280 L330 250" />
+    <path d="M100 280 L70 250" />
+    <circle cx="330" cy="250" r="4" fill="#17231D"/>
+    <circle cx="70" cy="250" r="4" fill="#17231D"/>
+    <!-- Amber flag at the peak -->
+    <path d="M195 108 L205 108 L200 95 Z" fill="#E2932E" stroke="none"/>
+  </g>
+</svg>

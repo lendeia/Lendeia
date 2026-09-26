@@ -1,0 +1,29 @@
+<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    CAMERA — original hand-drawn placeholder illustration.
+    TO EDIT: change the fill colors below (background #F3F1EB, line
+    color #17231D, accent dot #E2932E) to match your palette.
+    TO REPLACE WITH A REAL PHOTO: delete this file's contents, or just
+    swap the import in the files listed below to a real image path/URL
+    — no other code changes needed, since it's used as a plain <img src>.
+    Used in: frontend/pages/Welcome/Welcome.jsx (HERO_IMAGES, SERVICES),
+    shared/constants/index.js (IMG.hero, shown on Home.jsx).
+  -->
+  <rect width="400" height="400" fill="#F3F1EB"/>
+  <!-- Camera body -->
+  <g stroke="#17231D" stroke-width="3" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="90" y="150" width="220" height="150" rx="14" fill="#FAFAF8"/>
+    <!-- Top viewfinder bump -->
+    <rect x="150" y="118" width="60" height="34" rx="6" fill="#FAFAF8"/>
+    <!-- Lens (outer ring / inner ring / glass) -->
+    <circle cx="200" cy="225" r="55" fill="#FAFAF8"/>
+    <circle cx="200" cy="225" r="38" fill="#F3F1EB"/>
+    <circle cx="200" cy="225" r="20" fill="#17231D"/>
+    <!-- Lens glare highlight -->
+    <circle cx="185" cy="212" r="5" fill="#FAFAF8"/>
+    <!-- Small side button/dial -->
+    <rect x="255" y="168" width="34" height="18" rx="3" fill="#F3F1EB"/>
+    <!-- Amber accent dot (shutter button) -->
+    <circle cx="118" cy="172" r="6" fill="#E2932E" stroke="none"/>
+  </g>
+</svg>
