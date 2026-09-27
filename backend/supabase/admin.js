@@ -65,21 +65,41 @@ export async function getAllSupportRequests() {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("support_requests")
-    .select("id, user_id, category, message, listing_id, reported_user_id, status, created_at, users:user_id(name, email)")
+    .select(
+      "id, user_id, category, message, listing_id, reported_user_id, status, created_at, " +
+      "users:user_id(name, email), " +
+      "reported_user:reported_user_id(name, email), " +
+      "listings:listing_id(name, owner:owner_id(name, email))"
+    )
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data || []).map((r) => ({
-    id: r.id,
-    userId: r.user_id,
-    userName: r.users?.name || "Unknown",
-    userEmail: r.users?.email || "",
-    category: r.category,
-    message: r.message,
-    listingId: r.listing_id,
-    reportedUserId: r.reported_user_id,
-    status: r.status,
-    createdAt: r.created_at,
-  }));
+  return (data || []).map((r) => {
+    // Who was actually reported — either the person directly (a
+    // report_user submission), or, for a report_listing submission
+    // (which has no reported_user_id at all in the schema — only a
+    // listing_id), the LISTING'S OWNER, since that's the real person
+    // behind the reported product. Previously the admin queue only
+    // ever showed the submitter's identity, never the reported
+    // person's, making it impossible to know who was actually being
+    // reported without a separate manual lookup.
+    const reportedName = r.reported_user?.name || r.listings?.owner?.name || null;
+    const reportedEmail = r.reported_user?.email || r.listings?.owner?.email || null;
+    return {
+      id: r.id,
+      userId: r.user_id,
+      userName: r.users?.name || "Unknown",
+      userEmail: r.users?.email || "",
+      category: r.category,
+      message: r.message,
+      listingId: r.listing_id,
+      listingName: r.listings?.name || null,
+      reportedUserId: r.reported_user_id,
+      reportedName,
+      reportedEmail,
+      status: r.status,
+      createdAt: r.created_at,
+    };
+  });
 }
 
 /**

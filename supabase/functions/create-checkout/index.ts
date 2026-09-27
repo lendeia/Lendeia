@@ -37,10 +37,12 @@ const corsHeaders = {
 };
 
 // Server-side source of truth for pricing — matches
-// frontend/components/PlanCard.jsx's PLANS array. PayMongo amounts are
-// in centavos (smallest currency unit), so ₱79.00 = 7900.
+// frontend/components/PlanCard.jsx's PURCHASABLE_PLANS. PayMongo
+// amounts are in centavos (smallest currency unit), so ₱149.00 =
+// 14900. Standard removed by explicit request — not purchasable
+// through this endpoint anymore, even via a direct API call bypassing
+// the frontend UI (which also no longer offers it).
 const PLAN_PRICES_CENTAVOS: Record<string, { amount: number; name: string; days: number }> = {
-  standard: { amount: 7900, name: "Standard Plan", days: 14 },
   featured: { amount: 14900, name: "Pro Plan", days: 30 },
 };
 

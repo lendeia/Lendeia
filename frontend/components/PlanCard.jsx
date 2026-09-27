@@ -59,18 +59,19 @@ export const PLANS = [
     emoji: "⭐",
     price: 149,
     days: 30,
-    maxPhotos: 20,
-    maxActiveListings: 30,
+    maxPhotos: 10,
+    maxActiveListings: 10,
     analytics: true,
     featured: true,
     features: [
-      "Up to 30 active listings",
-      "Up to 20 photos per listing",
+      "Up to 10 active listings",
+      "Up to 10 photos per listing",
       "Published for 30 days",
-      "Everything in Standard",
+      "Everything in Free",
       "⭐ Featured label",
       "📈 Increased visibility in relevant listings",
       "📌 Featured section exposure",
+      "📊 Seller analytics (views over time)",
     ],
   },
 ];
@@ -80,6 +81,15 @@ export const MAX_UPLOAD_CAP = Math.max(...PLANS.map((p) => p.maxPhotos));
 export function getPlanById(planId) {
   return PLANS.find((p) => p.id === planId) || PLANS[0];
 }
+
+// What's actually offered for purchase/upgrade — Standard removed by
+// explicit request. PLANS itself still includes it (unchanged) purely
+// so getPlanById() keeps resolving correctly for anyone who's already
+// on it — their real limits and remaining paid time stay exactly as
+// they were; they just can't be newly purchased anymore. When their
+// plan naturally expires, the existing expiration logic (backend/
+// supabase/subscription.js) already correctly falls them back to Free.
+export const PURCHASABLE_PLANS = PLANS.filter((p) => p.id !== "standard");
 
 export function PlanCard({ plan, selected, onSelect, photoCount }) {
   const exceedsPhotos = typeof photoCount === "number" && photoCount > plan.maxPhotos;

@@ -127,6 +127,23 @@ export default function Admin({ back, visitStore }) {
 
             <p className="text-[13.5px] text-[#17231D] mt-3 whitespace-pre-wrap">{r.message}</p>
 
+            {/* Who was actually reported — previously the queue only
+                ever showed who SUBMITTED the report, never who it was
+                about, which defeated the point of reviewing a report at
+                all. */}
+            {(r.reportedName || r.listingName) && (
+              <div className="mt-3 pt-3 border-t border-[#17231D]/8 bg-[#E2932E]/8 -mx-4 px-4 py-2.5">
+                <p className="text-[11px] text-[#8A9089] uppercase tracking-wide font-medium">Reported</p>
+                {r.listingName && <p className="text-[13px] text-[#17231D]">Listing: {r.listingName}</p>}
+                {r.reportedName && (
+                  <p className="text-[13px] text-[#17231D]">
+                    {r.category === "report_listing" ? "Owner" : "User"}: {r.reportedName}
+                    {r.reportedEmail && <span className="text-[#8A9089]"> — {r.reportedEmail}</span>}
+                  </p>
+                )}
+              </div>
+            )}
+
             {(r.listingId || r.reportedUserId) && (
               <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[#17231D]/8">
                 {/* Plain IDs rather than a "View" button — openItem()

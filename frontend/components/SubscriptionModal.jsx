@@ -28,7 +28,7 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { X, ShieldCheck } from "lucide-react";
-import { PLANS, PlanCard } from "./PlanCard";
+import { PLANS, PURCHASABLE_PLANS, PlanCard } from "./PlanCard";
 import { useAuth } from "../../state/auth/authStore";
 import { switchToFreePlan, startPlanCheckout } from "../../backend/supabase/subscription";
 
@@ -106,8 +106,8 @@ export default function SubscriptionModal({ currentPlanId, onClose, onSubscribed
               active at once and how many photos each can have. Upgrade or downgrade anytime here.
             </p>
 
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mt-6">
-              {PLANS.map((p) => (
+            <div className="grid sm:grid-cols-2 gap-3 sm:gap-4 mt-6">
+              {PURCHASABLE_PLANS.map((p) => (
                 <PlanCard key={p.id} plan={p} selected={planId === p.id} onSelect={setPlanId} />
               ))}
             </div>
