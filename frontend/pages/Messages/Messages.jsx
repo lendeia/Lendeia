@@ -32,6 +32,7 @@ import {
   reportMessage,
 } from "../../../backend/supabase/messages";
 import { blockUser } from "../../../backend/supabase/blocking";
+import { getPublicProfile } from "../../../backend/supabase/users";
 
 const POLL_MS = 4000;
 
@@ -91,10 +92,32 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
   useEffect(() => {
     if (!initialOtherUserId || !account?.id || startedInitialRef.current) return;
     startedInitialRef.current = true;
-    getOrCreateConversation(initialOtherUserId)
-      .then((id) => setActiveId(id))
-      .catch((err) => setError(err.message));
   }, [initialOtherUserId, account?.id]);
+
+  // Previously this eagerly called getOrCreateConversation() the moment
+  // Messages opened with a target user (e.g. from a "Message" button on
+  // Details.jsx/OwnerStore.jsx) — creating a REAL, permanent conversation
+  // row even if the person never actually typed or sent anything at
+  // all. Now it only opens an EXISTING conversation if one's already
+  // there; otherwise it holds the intended recipient's basic public
+  // info in pendingRecipient so the thread UI can render normally
+  // (their name/photo, an empty message list, the composer) without
+  // anything being written to the database yet. Nothing real gets
+  // created until handleSend/handleSendPhoto actually fires.
+  const [pendingRecipient, setPendingRecipient] = useState(null);
+  useEffect(() => {
+    if (!initialOtherUserId || !account?.id || loadingList) return;
+    const existing = conversations.find((c) => c.otherUserId === initialOtherUserId);
+    if (existing) {
+      setActiveId(existing.id);
+      return;
+    }
+    if (pendingRecipient?.id === initialOtherUserId || activeId) return;
+    getPublicProfile(initialOtherUserId)
+      .then((profile) => { if (profile) { setPendingRecipient(profile); setThread([]); } })
+      .catch((err) => setError(err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOtherUserId, account?.id, loadingList, conversations]);
 
   const refreshThread = useCallback(() => {
     if (!activeId) return;
@@ -119,6 +142,18 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
   }, [thread]);
 
   const activeConvo = conversations.find((c) => c.id === activeId);
+  // Used by the header/thread UI in place of activeConvo whenever
+  // there's no real conversation yet — same shape, so nothing else
+  // needs to know the difference between "a real conversation" and
+  // "about to message someone for the first time."
+  const displayConvo = activeConvo || (pendingRecipient
+    ? {
+        otherUserId: pendingRecipient.id,
+        otherName: pendingRecipient.name,
+        otherAvatar: pendingRecipient.avatarUrl,
+        otherLastActiveAt: pendingRecipient.lastActiveAt,
+      }
+    : null);
 
   // Resolves the phone-sharing state whenever the open conversation
   // (specifically, who the other person is) changes.
@@ -126,9 +161,9 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
     setRelevantRental(null);
     setMySharedPhone(false);
     setTheirSharedPhone(null);
-    if (!activeConvo?.otherUserId || !account?.id) return;
+    if (!displayConvo?.otherUserId || !account?.id) return;
     let cancelled = false;
-    getRelevantRentalForContact(activeConvo.otherUserId)
+    getRelevantRentalForContact(displayConvo.otherUserId)
       .then((rental) => {
         if (cancelled || !rental) return;
         setRelevantRental(rental);
@@ -139,7 +174,7 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
       .then((phone) => { if (!cancelled && phone !== undefined) setTheirSharedPhone(phone); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [activeConvo?.otherUserId, account?.id]);
+  }, [displayConvo?.otherUserId, account?.id]);
 
   const handleTogglePhoneShare = async () => {
     if (!relevantRental) return;
@@ -157,12 +192,26 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
     }
   };
 
+  // Only point where a conversation actually gets created now — right
+  // when a message is genuinely about to be sent, not just from
+  // opening the thread. Returns the real conversation id either way
+  // (existing or freshly created) so callers don't need to know which.
+  const ensureConversationId = async () => {
+    if (activeId) return activeId;
+    if (!pendingRecipient) return null;
+    const id = await getOrCreateConversation(pendingRecipient.id);
+    setActiveId(id);
+    setPendingRecipient(null);
+    return id;
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!draft.trim() || !activeId || !account?.id) return;
+    if (!draft.trim() || !account?.id || (!activeId && !pendingRecipient)) return;
     setSending(true);
     try {
-      const sent = await sendMessage(activeId, account.id, draft);
+      const convoId = await ensureConversationId();
+      const sent = await sendMessage(convoId, account.id, draft);
       setThread((prev) => [
         ...prev,
         { id: sent.id, senderId: sent.senderId, senderName: account.name, content: sent.content, imageUrl: sent.imageUrl, createdAt: sent.createdAt, readAt: null },
@@ -181,11 +230,12 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
   const handlePhotoChosen = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file || !activeId || !account?.id) return;
+    if (!file || !account?.id || (!activeId && !pendingRecipient)) return;
     setSending(true);
     setError(null);
     try {
-      const sent = await sendMessagePhoto(activeId, account.id, file, draft);
+      const convoId = await ensureConversationId();
+      const sent = await sendMessagePhoto(convoId, account.id, file, draft);
       setThread((prev) => [
         ...prev,
         { id: sent.id, senderId: sent.senderId, senderName: account.name, content: sent.content, imageUrl: sent.imageUrl, createdAt: sent.createdAt, readAt: null },
@@ -212,14 +262,15 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
   };
 
   const handleBlock = async () => {
-    if (!activeConvo || !account) return;
-    if (!window.confirm(`Block ${activeConvo.otherName}? They won't be able to message you, and you won't be able to message them.`)) return;
+    if (!displayConvo || !account) return;
+    if (!window.confirm(`Block ${displayConvo.otherName}? They won't be able to message you, and you won't be able to message them.`)) return;
     try {
-      await blockUser(activeConvo.otherUserId);
+      await blockUser(displayConvo.otherUserId);
       setShowMenu(false);
       setActiveId(null);
+      setPendingRecipient(null);
       refreshList();
-      window.alert(`${activeConvo.otherName} has been blocked.`);
+      window.alert(`${displayConvo.otherName} has been blocked.`);
     } catch (err) {
       window.alert(err.message || "Couldn't block this user. Please try again.");
     }
@@ -244,7 +295,7 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
           scrolling. Desktop keeps the original constrained-height
           (not fixed) layout, since it sits inline on the page there. */}
       <div className="fixed top-[60px] bottom-[64px] left-0 right-0 md:static md:top-auto md:bottom-auto md:grid md:grid-cols-[280px_1fr] md:gap-6 md:border md:border-[#17231D]/8 md:rounded-2xl md:overflow-hidden md:bg-white md:h-[78vh]">
-        <div className={`${activeId ? "hidden md:block" : "block"} h-full border-r border-[#17231D]/8 overflow-y-auto min-h-0`}>
+        <div className={`${activeId || pendingRecipient ? "hidden md:block" : "block"} h-full border-r border-[#17231D]/8 overflow-y-auto min-h-0`}>
           <div className="px-4 py-4 border-b border-[#17231D]/8 flex items-center gap-2">
             {back && (
               <button onClick={back} className="md:hidden text-[#17231D]/70">
@@ -262,7 +313,7 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
             conversations.map((c) => (
               <button
                 key={c.id}
-                onClick={() => setActiveId(c.id)}
+                onClick={() => { setActiveId(c.id); setPendingRecipient(null); }}
                 className={`w-full text-left px-4 py-3.5 border-b border-[#17231D]/6 hover:bg-[#17231D]/[0.02] transition-colors flex items-center gap-3 ${
                   activeId === c.id ? "bg-[#17231D]/[0.03]" : ""
                 }`}
@@ -291,8 +342,8 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
           )}
         </div>
 
-        <div className={`${activeId ? "flex" : "hidden md:flex"} flex-col h-full min-h-0`}>
-          {!activeId ? (
+        <div className={`${activeId || pendingRecipient ? "flex" : "hidden md:flex"} flex-col h-full min-h-0`}>
+          {!activeId && !pendingRecipient ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
               <MessageCircle size={28} className="text-[#8A9089] mb-2" />
               <p className="text-[13.5px] text-[#8A9089]">Select a conversation to view messages.</p>
@@ -312,28 +363,28 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
                   just the message list inside it. Sticky positioning
                   pins it regardless of which element ends up scrolling. */}
               <div className="shrink-0 sticky top-0 z-10 bg-white px-4 py-3.5 border-b border-[#17231D]/8 flex items-center gap-2.5">
-                <button onClick={() => setActiveId(null)} className="md:hidden text-[#17231D]/70">
+                <button onClick={() => { setActiveId(null); setPendingRecipient(null); }} className="md:hidden text-[#17231D]/70">
                   <ChevronLeft size={18} />
                 </button>
                 {/* Clicking the avatar or name now navigates to that
                     person's real profile — previously this was static,
                     unclickable display text. */}
                 <button
-                  onClick={() => activeConvo?.otherUserId && visitProfile?.(activeConvo.otherUserId)}
+                  onClick={() => displayConvo?.otherUserId && visitProfile?.(displayConvo.otherUserId)}
                   className="flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition-opacity"
                 >
                   <div className="w-8 h-8 rounded-full bg-[#17231D]/8 overflow-hidden flex items-center justify-center shrink-0">
-                    {activeConvo?.otherAvatar ? (
-                      <img src={activeConvo.otherAvatar} className="w-full h-full object-cover" alt="" />
+                    {displayConvo?.otherAvatar ? (
+                      <img src={displayConvo.otherAvatar} className="w-full h-full object-cover" alt="" />
                     ) : (
                       <span className="font-serif text-[12px] text-[#6b6f66]">
-                        {(activeConvo?.otherName || "?").charAt(0).toUpperCase()}
+                        {(displayConvo?.otherName || "?").charAt(0).toUpperCase()}
                       </span>
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[14.5px] font-medium text-[#17231D] truncate">{activeConvo?.otherName || "Conversation"}</p>
-                    <PresenceBadge lastActiveAt={activeConvo?.otherLastActiveAt} />
+                    <p className="text-[14.5px] font-medium text-[#17231D] truncate">{displayConvo?.otherName || "Conversation"}</p>
+                    <PresenceBadge lastActiveAt={displayConvo?.otherLastActiveAt} />
                   </div>
                 </button>
 

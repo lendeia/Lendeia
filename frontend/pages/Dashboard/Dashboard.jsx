@@ -476,19 +476,34 @@ function RequestRow({ request, listing, isOwner, onApprove, onDecline, onCancel,
   return (
     <div
       onClick={() => onViewReceipt?.(request)}
-      className="flex items-center gap-4 px-4 py-5 cursor-pointer hover:bg-[#17231D]/[0.02] transition-colors"
+      className="flex flex-col sm:flex-row sm:items-center gap-4 px-4 py-5 cursor-pointer hover:bg-[#17231D]/[0.02] transition-colors"
     >
-      <div className="w-20 h-20 rounded-xl overflow-hidden bg-[#e9e5d8] shrink-0">
-        {/* Prefers the live `listing` object's photo (from findListing())
-            when available, but falls back to the rental's own permanent
-            snapshot (request.itemImg — see database/schema/
-            rental_item_snapshot.sql) when it isn't — e.g. the owner
-            delisted or deleted the item since. Previously there was no
-            fallback at all, so this photo went blank in exactly that
-            case even though the item's name kept displaying fine. */}
-        {listing?.img || request.itemImg ? (
-          <img src={listing?.img || request.itemImg} className="w-full h-full object-cover" />
-        ) : null}
+      <div className="flex items-center gap-4">
+        <div className="w-20 h-20 rounded-xl overflow-hidden bg-[#e9e5d8] shrink-0">
+          {/* Prefers the live `listing` object's photo (from findListing())
+              when available, but falls back to the rental's own permanent
+              snapshot (request.itemImg — see database/schema/
+              rental_item_snapshot.sql) when it isn't — e.g. the owner
+              delisted or deleted the item since. Previously there was no
+              fallback at all, so this photo went blank in exactly that
+              case even though the item's name kept displaying fine. */}
+          {listing?.img || request.itemImg ? (
+            <img src={listing?.img || request.itemImg} className="w-full h-full object-cover" />
+          ) : null}
+        </div>
+
+        {/* On mobile, the status pill and action buttons now sit below
+            the details instead of being squeezed into the same row —
+            previously this whole card was a single rigid row with no
+            responsive stacking at all, so on a narrow screen the
+            buttons (which never shrink) visually overlapped the
+            location/details text instead of wrapping onto their own
+            line. Shown here, next to the photo, ONLY on mobile — moved
+            back out to the far right on sm+ screens (its second,
+            desktop-only copy further below). */}
+        <div className="sm:hidden">
+          <Pill tone={statusTone(request.status)}>{request.status}</Pill>
+        </div>
       </div>
 
       <div className="min-w-0 flex-1">
@@ -570,8 +585,13 @@ function RequestRow({ request, listing, isOwner, onApprove, onDecline, onCancel,
         </p>
       </div>
 
-      <div className="flex flex-col items-end gap-2.5 shrink-0">
-        <Pill tone={statusTone(request.status)}>{request.status}</Pill>
+      <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2.5 sm:shrink-0">
+        {/* Desktop-only copy of the status pill — mobile shows its own
+            copy up next to the photo instead (see above), so this one
+            is hidden there to avoid showing the same pill twice. */}
+        <span className="hidden sm:inline-flex">
+          <Pill tone={statusTone(request.status)}>{request.status}</Pill>
+        </span>
 
         {isOwner && isPending && (
           <div className="flex gap-2">
