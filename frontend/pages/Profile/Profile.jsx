@@ -447,10 +447,9 @@ function PersonalInfoModal({ account, onClose, onSave, saving, error }) {
 }
 
 // ---- SECTION: sub-component — email/password sign-in-or-upgrade form ----
-// Second option alongside the Google button above, for when Google OAuth
-// isn't configured yet (no Google Cloud project / Manual Linking toggle
-// needed for this path — see backend/supabase/anonymousAuth.js's
-// upgradeWithEmailPassword/signInWithEmailPassword). Two modes:
+// The only sign-in method now (Google sign-in was removed by explicit
+// request) — see backend/supabase/anonymousAuth.js's
+// upgradeWithEmailPassword/signInWithEmailPassword. Two modes:
 //   "upgrade" — turn THIS anonymous session into a permanent account
 //               (same auth.uid(), nothing already created is orphaned).
 //   "existing" — sign into an account that was already upgraded on a
@@ -598,7 +597,7 @@ export default function Profile({ goToLegal, goToHelp }) {
   // file header for why: it used to produce a non-UUID `account.id` that
   // broke real Supabase inserts. `account` is now populated automatically
   // by anonymous auth shortly after the app loads.
-  const { account, authLoading, authError, retryAuth, linkGoogleAccount, upgradeWithEmailPassword, signInWithEmailPassword, logout, updateAccount, changePassword, requestPasswordReset, passwordRecovery, clearPasswordRecovery } = useAuth();
+  const { account, authLoading, authError, retryAuth, upgradeWithEmailPassword, signInWithEmailPassword, logout, updateAccount, changePassword, requestPasswordReset, passwordRecovery, clearPasswordRecovery } = useAuth();
   const { coords: myCoords, loading: locatingForTrust, requestLocation: requestLocationForTrust } = useMyLocation();
 
   const [profileDetails, setProfileDetails] = useState({ username: null, bio: null, city: null, age: null, gender: null, phone: null });
@@ -865,24 +864,11 @@ export default function Profile({ goToLegal, goToHelp }) {
           <p className="text-[14px] font-medium text-[#17231D]">You're browsing as a guest</p>
           <p className="text-[13px] text-[#6b6f66] mt-1 leading-relaxed">
             Your account only exists in this browser right now — if you clear your browsing data or
-            switch devices, you'll lose access to it permanently. Sign in with Google or email to make
-            it a real, recoverable account so you can list items, request rentals, and message
-            owners.
-          </p>
-          <button
-            onClick={() => linkGoogleAccount().catch((err) => window.alert(err.message || "Couldn't start Google sign-in."))}
-            className="mt-3 px-4 py-2.5 rounded-full bg-[#17231D] text-white text-[13.5px] font-medium"
-          >
-            Sign in with Google
-          </button>
-          <p className="text-[11px] text-[#8A9089] mt-1.5">
-            By continuing, you agree to our{" "}
-            <button onClick={() => goToLegal?.("terms")} className="underline">Terms & Conditions</button> and{" "}
-            <button onClick={() => goToLegal?.("privacy")} className="underline">Privacy Policy</button>.
+            switch devices, you'll lose access to it permanently. Sign in with email to make it a
+            real, recoverable account so you can list items, request rentals, and message owners.
           </p>
 
-          <div className="mt-4 pt-4 border-t border-[#17231D]/8">
-            <p className="text-[12.5px] text-[#8A9089] mb-1">Or use email instead:</p>
+          <div className="mt-4">
             <EmailAuthForm onUpgrade={upgradeWithEmailPassword} onSignIn={signInWithEmailPassword} onForgotPassword={requestPasswordReset} goToLegal={goToLegal} />
           </div>
         </div>

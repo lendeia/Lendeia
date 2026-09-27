@@ -80,14 +80,36 @@ export function LocationProvider({ children }) {
     }
     setLoading(true);
     setError(null);
+
+    // Defensive fallback timeout — enableHighAccuracy can leave a
+    // device with weak/no GPS signal (common indoors) hanging well past
+    // the browser's own 10s timeout without ever firing either
+    // callback, which is exactly what left the button stuck on
+    // "Locating…" forever with no way out. This guarantees the UI
+    // always resolves one way or another within 12 seconds, regardless
+    // of whether the underlying browser API behaves.
+    let settled = false;
+    const fallbackTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      setError("Couldn't get your location — check that location is allowed for this site in your browser/phone settings, then try again.");
+      setLoading(false);
+    }, 12000);
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(fallbackTimer);
         const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setCoords(next);
         writeCachedCoords(next);
         setLoading(false);
       },
       (err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(fallbackTimer);
         setError(
           err.code === err.PERMISSION_DENIED
             ? "Location permission denied."
@@ -95,7 +117,7 @@ export function LocationProvider({ children }) {
         );
         setLoading(false);
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }, []);
 

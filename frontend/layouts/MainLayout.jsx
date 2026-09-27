@@ -37,7 +37,7 @@ const LOCATION_BANNER_DISMISSED_KEY = "renta_location_banner_dismissed";
 // either granted or explicitly dismissed, so there's exactly one place
 // a confused new user needs to find, not several scattered ones.
 function LocationBanner() {
-  const { coords, loading, requestLocation } = useMyLocation();
+  const { coords, loading, error, requestLocation } = useMyLocation();
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(LOCATION_BANNER_DISMISSED_KEY) === "true"; } catch { return false; }
   });
@@ -50,21 +50,31 @@ function LocationBanner() {
   };
 
   return (
-    <div className="bg-[#4B5D46]/10 border-b border-[#4B5D46]/20 px-4 py-2.5 flex items-center justify-center gap-3 text-[13px] text-[#17231D] text-center">
-      <LocateFixed size={15} className="text-[#4B5D46] shrink-0" />
-      <span>
-        Location is off. Turn it on to see items near you, real distances, and the map.
-      </span>
-      <button
-        onClick={requestLocation}
-        disabled={loading}
-        className="shrink-0 px-3 py-1 rounded-full bg-[#4B5D46] text-white font-medium disabled:opacity-60"
-      >
-        {loading ? "Locating…" : "Enable location"}
-      </button>
-      <button onClick={dismiss} className="shrink-0 text-[#8A9089] hover:text-[#17231D]" title="Dismiss">
-        <X size={15} />
-      </button>
+    <div className="bg-[#4B5D46]/10 border-b border-[#4B5D46]/20 px-4 py-2.5 flex flex-col items-center gap-1.5 text-[13px] text-[#17231D] text-center">
+      <div className="flex items-center justify-center gap-3">
+        <LocateFixed size={15} className="text-[#4B5D46] shrink-0" />
+        <span>
+          Location is off. Turn it on to see items near you, real distances, and the map.
+        </span>
+        <button
+          onClick={requestLocation}
+          disabled={loading}
+          className="shrink-0 px-3 py-1 rounded-full bg-[#4B5D46] text-white font-medium disabled:opacity-60"
+        >
+          {loading ? "Locating…" : "Enable location"}
+        </button>
+        <button onClick={dismiss} className="shrink-0 text-[#8A9089] hover:text-[#17231D]" title="Dismiss">
+          <X size={15} />
+        </button>
+      </div>
+      {/* Previously the fallback timeout (locationStore.jsx) DID always
+          resolve one way or another, but this banner never actually
+          showed the resulting error — it just silently reverted back to
+          "Enable location" with zero explanation, which looked exactly
+          like the click had done nothing at all. */}
+      {error && !loading && (
+        <p className="text-[12px] text-[#a15c1f] max-w-md">{error}</p>
+      )}
     </div>
   );
 }

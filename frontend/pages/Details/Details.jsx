@@ -132,7 +132,7 @@ function ReviewerAvatar({ url, name, size = 26 }) {
 export default function Details({ item, back, goToLogin, visitStore, goToDashboard, messageUser, goToLegal, goToHelp }) {
   const { requests, requestRental, cancelRental } = useRentals();
   const { savedIds, toggleSave } = useSavedListings();
-  const { account, linkGoogleAccount } = useAuth();
+  const { account } = useAuth();
   const { recordView } = useListings();
   const { coords: myCoords, loading: locating, requestLocation } = useMyLocation();
   const [requesting, setRequesting] = useState(false);
