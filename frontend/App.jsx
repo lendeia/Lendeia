@@ -21,6 +21,7 @@ import MapPage from "./pages/Map/MapPage";
 import ListEquipment from "./pages/ListEquipment/ListEquipment";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Profile from "./pages/Profile/Profile";
+import Admin from "./pages/Admin/Admin";
 import OwnerStore from "./pages/Store/OwnerStore";
 import Messages from "./pages/Messages/Messages";
 import Receipt from "./pages/Receipt/Receipt";
@@ -203,15 +204,26 @@ function AppShell() {
   };
 
   const [helpGuideId, setHelpGuideId] = useState(null);
+  const [helpReportOptions, setHelpReportOptions] = useState(null);
   const [helpReturnPage, setHelpReturnPage] = useState("home");
   // Real navigation target for "How does this work?"-style buttons
   // anywhere in the app — jumps straight to the relevant guide, not
-  // just the generic Help page.
-  const goToHelp = (guideId) => {
+  // just the generic Help page. The second, optional argument is for
+  // "Report this listing"/"Report this user" buttons — jumps straight
+  // to the Contact Support form with that category and target
+  // pre-filled, instead of making someone find and pick it themselves
+  // from the generic category list with no context carried over.
+  const goToHelp = (guideId, reportOptions) => {
     setHelpGuideId(guideId || null);
+    setHelpReportOptions(reportOptions || null);
     setHelpReturnPage(page);
     setPage("help");
   };
+  // Real access control is the database RLS policy (see
+  // database/schema/owner_role_and_admin_access.sql) — this function
+  // itself does no role check at all; Profile.jsx only ever shows the
+  // button that calls it to an account whose role is admin/owner.
+  const goToAdmin = () => setPage("admin");
 
   if (resolvingDeepLink) {
     return (
@@ -241,7 +253,8 @@ function AppShell() {
       {page === "map" && <MapPage openItem={openItem} />}
       {page === "list" && <ListEquipment goToLogin={() => setPage("profile")} goToLegal={goToLegal} goToHelp={goToHelp} />}
       {page === "dashboard" && <Dashboard openItem={openItem} visitProfile={visitStore} viewReceipt={viewReceipt} />}
-      {page === "profile" && <Profile goToLegal={goToLegal} goToHelp={goToHelp} />}
+      {page === "profile" && <Profile goToLegal={goToLegal} goToHelp={goToHelp} goToAdmin={goToAdmin} />}
+      {page === "admin" && <Admin back={() => setPage("profile")} visitStore={visitStore} />}
       {page === "store" && (
         <OwnerStore
           ownerId={storeOwnerId}
@@ -249,6 +262,7 @@ function AppShell() {
           openItem={openItem}
           messageUser={messageUser}
           visitProfile={visitStore}
+          goToHelp={goToHelp}
         />
       )}
       {page === "messages" && (
@@ -265,7 +279,15 @@ function AppShell() {
       {page === "legal" && (
         <Legal back={() => setPage(legalReturnPage)} initialSection={legalSection} />
       )}
-      {page === "help" && <Help back={() => setPage(helpReturnPage)} initialGuideId={helpGuideId} />}
+      {page === "help" && (
+        <Help
+          back={() => setPage(helpReturnPage)}
+          initialGuideId={helpGuideId}
+          initialCategory={helpReportOptions?.category}
+          initialListingId={helpReportOptions?.listingId}
+          initialReportedUserId={helpReportOptions?.reportedUserId}
+        />
+      )}
     </MainLayout>
     {checkoutReturn && (
       <PaymentConfirmationOverlay

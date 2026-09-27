@@ -77,7 +77,7 @@ const CATEGORY_LABELS = {
   agreementFollowed: "Followed rental agreement",
 };
 
-export default function OwnerStore({ ownerId, back, openItem, messageUser, visitProfile }) {
+export default function OwnerStore({ ownerId, back, openItem, messageUser, visitProfile, goToHelp }) {
   const { account } = useAuth();
   const [profile, setProfile] = useState(null);
   const [reputation, setReputation] = useState({ avgRating: 0, reviewCount: 0, completedRentals: 0, categories: null });
@@ -163,6 +163,13 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
           label="Share"
         />
       </div>
+
+      <button
+        onClick={() => goToHelp?.(null, { category: "report_user", reportedUserId: ownerId })}
+        className="text-[11.5px] text-[#8A9089] hover:text-[#a15c1f] underline mb-4"
+      >
+        Report this user
+      </button>
 
       {loading && <p className="text-[14px] text-[#6b6f66]">Loading profile…</p>}
       {error && <p className="text-[14px] text-red-600">{error}</p>}

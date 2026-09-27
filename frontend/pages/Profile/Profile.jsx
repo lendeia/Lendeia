@@ -16,6 +16,7 @@ import { useAuth } from "../../../state/auth/authStore";
 import SubscriptionModal from "../../components/SubscriptionModal";
 import { getPlanById } from "../../components/PlanCard";
 import { getMySubscription } from "../../../backend/supabase/subscription";
+import { getMyRole } from "../../../backend/supabase/admin";
 import { getRenterVerification } from "../../../backend/supabase/rentals";
 import { uploadAvatar } from "../../../backend/supabase/storage";
 import { getMyBlockedUsers, unblockUser } from "../../../backend/supabase/blocking";
@@ -591,7 +592,7 @@ function EmailAuthForm({ onUpgrade, onSignIn, onForgotPassword, goToLegal }) {
 }
 
 // ---- SECTION: MAIN component — Profile/account page ----
-export default function Profile({ goToLegal, goToHelp }) {
+export default function Profile({ goToLegal, goToHelp, goToAdmin }) {
   // NOTE: no longer destructures `login` — the manual email/name login
   // form (LoginScreen) has been retired. See state/auth/authStore.jsx's
   // file header for why: it used to produce a non-UUID `account.id` that
@@ -599,6 +600,12 @@ export default function Profile({ goToLegal, goToHelp }) {
   // by anonymous auth shortly after the app loads.
   const { account, authLoading, authError, retryAuth, upgradeWithEmailPassword, signInWithEmailPassword, logout, updateAccount, changePassword, requestPasswordReset, passwordRecovery, clearPasswordRecovery } = useAuth();
   const { coords: myCoords, loading: locatingForTrust, requestLocation: requestLocationForTrust } = useMyLocation();
+
+  const [myRole, setMyRole] = useState("user");
+  useEffect(() => {
+    if (!account?.id || account?.isAnonymous) return;
+    getMyRole(account.id).then(setMyRole).catch(() => {});
+  }, [account?.id, account?.isAnonymous]);
 
   const [profileDetails, setProfileDetails] = useState({ username: null, bio: null, city: null, age: null, gender: null, phone: null });
   useEffect(() => {
@@ -729,11 +736,19 @@ export default function Profile({ goToLegal, goToHelp }) {
   const SETTINGS = [
     { label: "Personal information", enabled: true, onClick: () => setEditingInfo(true) },
     // Only offered for a real email/password account — nothing to
-    // change here for a Google account or a guest.
+    // change here for a guest session with no password at all.
     ...(account.authProvider === "email"
       ? [{ label: "Change password", enabled: true, onClick: () => setChangingPassword(true) }]
       : []),
     { label: "Help & Support", enabled: true, onClick: () => goToHelp() },
+    // Only ever shown to the specific account(s) whose role is actually
+    // admin/owner in the database (see database/schema/
+    // owner_role_and_admin_access.sql) — this check is purely about
+    // whether to SHOW the menu item; the real security boundary is the
+    // database RLS policy itself, not this frontend condition.
+    ...(myRole === "admin" || myRole === "owner"
+      ? [{ label: "Admin Dashboard", enabled: true, onClick: () => goToAdmin?.() }]
+      : []),
     ...(account.isAnonymous ? [] : [{ label: "Log out", enabled: true, onClick: handleLogout }]),
     // Only for a real account — a guest session doesn't have persistent
     // data in the same sense there's something durable to delete.

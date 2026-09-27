@@ -560,6 +560,27 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
             )}
           </div>
 
+          {/* Real, direct report links — previously "Report a Listing"/
+              "Report a User" only existed as generic categories on the
+              main Help page with no way to jump there pre-filled with
+              which listing/user, from the listing itself. */}
+          {!isOwnListing && (
+            <div className="flex items-center gap-4 mt-2">
+              <button
+                onClick={() => goToHelp?.(null, { category: "report_listing", listingId: item.id })}
+                className="text-[11.5px] text-[#8A9089] hover:text-[#a15c1f] underline"
+              >
+                Report this listing
+              </button>
+              <button
+                onClick={() => goToHelp?.(null, { category: "report_user", reportedUserId: item.ownerId })}
+                className="text-[11.5px] text-[#8A9089] hover:text-[#a15c1f] underline"
+              >
+                Report this user
+              </button>
+            </div>
+          )}
+
           {/* Real reviews for THIS specific item — publicly visible to
               anyone (no login/rental required to view), the way a product
               page on any online shopping site shows its own reviews.

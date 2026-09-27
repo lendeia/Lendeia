@@ -91,10 +91,10 @@ const GUIDES = [
   },
 ];
 
-export default function Help({ back, initialGuideId }) {
+export default function Help({ back, initialGuideId, initialCategory, initialListingId, initialReportedUserId }) {
   const { account } = useAuth();
-  const [view, setView] = useState(initialGuideId ? "guides" : "categories"); // "categories" | "form" | "guides"
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [view, setView] = useState(initialCategory ? "form" : initialGuideId ? "guides" : "categories"); // "categories" | "form" | "guides"
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory || null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -122,13 +122,19 @@ export default function Help({ back, initialGuideId }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!account || account.isAnonymous) {
-      setError("Please sign in with Google or email (in Profile) to contact support.");
+      setError("Please sign in with email (in Profile) to contact support.");
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      await submitSupportRequest({ userId: account.id, category: selectedCategory, message });
+      await submitSupportRequest({
+        userId: account.id,
+        category: selectedCategory,
+        message,
+        listingId: initialCategory === selectedCategory ? initialListingId : undefined,
+        reportedUserId: initialCategory === selectedCategory ? initialReportedUserId : undefined,
+      });
       setJustSubmitted(selectedCategory);
       setSelectedCategory(null);
       setMessage("");
