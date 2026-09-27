@@ -20,10 +20,55 @@
 //   via App.jsx's <MainLayout>. Navbar.jsx, Button.jsx, Pill.jsx,
 //   ListingCard.jsx, and Home.jsx consume the classes defined here.
 // ==================================================================
-import React from "react";
+import React, { useState } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { FONT_LINK } from "../../shared/constants";
+import { useMyLocation } from "../../state/location/locationStore";
+import { LocateFixed, X } from "lucide-react";
+
+const LOCATION_BANNER_DISMISSED_KEY = "renta_location_banner_dismissed";
+
+// One clear, unmissable, site-wide prompt for enabling location —
+// previously every page that used location (Home, Browse, Details,
+// Map, Profile) had its OWN small inline "Enable location" link, easy
+// to miss entirely if a new user's first page happened not to need it
+// yet, or just didn't notice it. This shows once, everywhere, until
+// either granted or explicitly dismissed, so there's exactly one place
+// a confused new user needs to find, not several scattered ones.
+function LocationBanner() {
+  const { coords, loading, requestLocation } = useMyLocation();
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem(LOCATION_BANNER_DISMISSED_KEY) === "true"; } catch { return false; }
+  });
+
+  if (coords || dismissed) return null;
+
+  const dismiss = () => {
+    setDismissed(true);
+    try { localStorage.setItem(LOCATION_BANNER_DISMISSED_KEY, "true"); } catch {}
+  };
+
+  return (
+    <div className="bg-[#4B5D46]/10 border-b border-[#4B5D46]/20 px-4 py-2.5 flex items-center justify-center gap-3 text-[13px] text-[#17231D] text-center">
+      <LocateFixed size={15} className="text-[#4B5D46] shrink-0" />
+      <span>
+        Location is off. Turn it on to see items near you, real distances, and the map.
+      </span>
+      <button
+        onClick={requestLocation}
+        disabled={loading}
+        className="shrink-0 px-3 py-1 rounded-full bg-[#4B5D46] text-white font-medium disabled:opacity-60"
+      >
+        {loading ? "Locating…" : "Enable location"}
+      </button>
+      <button onClick={dismiss} className="shrink-0 text-[#8A9089] hover:text-[#17231D]" title="Dismiss">
+        <X size={15} />
+      </button>
+    </div>
+  );
+}
+
 
 export default function MainLayout({ page, setPage, children, goToLegal, goToHelp }) {
   return (
@@ -113,7 +158,10 @@ export default function MainLayout({ page, setPage, children, goToLegal, goToHel
 
       <Navbar page={page} setPage={setPage} />
 
-      <main className="pt-[60px] md:pt-[72px] relative">{children}</main>
+      <main className="pt-[60px] md:pt-[72px] relative">
+        <LocationBanner />
+        {children}
+      </main>
 
       {/* Messages uses fixed positioning on mobile (see Messages.jsx) —
           <main> collapses to near-zero height there since its child is

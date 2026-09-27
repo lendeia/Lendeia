@@ -84,6 +84,13 @@ export default function MapPage({ openItem }) {
   const [userPos, setUserPos] = useState(null);
   const [locating, setLocating] = useState(true);
   const [locationError, setLocationError] = useState(null);
+  // Distinguishes "permanently denied at the browser level" (JS can't
+  // re-prompt for this — the person has to change it in their browser's
+  // own site settings) from any other failure (timeout, no GPS fix
+  // yet, etc.), where simply trying again can genuinely work. Shown as
+  // different guidance below rather than one generic message either
+  // way, which is what made it unclear how to actually fix this.
+  const [locationDenied, setLocationDenied] = useState(false);
   const [search, setSearch] = useState("");
 
   // Real location search — geocodes a place name via Nominatim (same
