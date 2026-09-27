@@ -60,11 +60,11 @@ export const PLANS = [
     price: 149,
     days: 30,
     maxPhotos: 10,
-    maxActiveListings: 10,
+    maxActiveListings: 30,
     analytics: true,
     featured: true,
     features: [
-      "Up to 10 active listings",
+      "Up to 30 active listings",
       "Up to 10 photos per listing",
       "Published for 30 days",
       "Everything in Free",
