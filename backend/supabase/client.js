@@ -28,7 +28,12 @@ const SUPABASE_ANON_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY;
 // of hardcoding them in several files. If a function is ever
 // redeployed under a different name, this is the only place to edit.
 export const EDGE_FUNCTION_NAMES = {
-  share: "quick-api", // supabase/functions/share-item/index.ts (rich link previews)
+  // Share previews: the function that builds them is called by Vercel,
+  // not by the browser - vercel.json hands link-preview crawlers that
+  // ask for lendeia.com/?item=... to ".../functions/v1/quick-api".
+  // If this function is ever redeployed under a different name, update
+  // the name inside vercel.json too.
+  share: "quick-api", // supabase/functions/share-item/index.ts
   checkout: "create-checkout", // supabase/functions/create-checkout/index.ts
   deleteAccount: "delete-account", // supabase/functions/delete-account/index.ts
 };
@@ -36,23 +41,18 @@ export const EDGE_FUNCTION_NAMES = {
 let _client = null;
 
 /**
- * Builds the real, working URL for a rich social share preview of a
- * specific item — a Supabase Edge Function (supabase/functions/
- * share-item) that returns server-rendered Open Graph tags (title,
- * description, photos), which the raw app URL alone can't provide
- * since this is a client-rendered SPA that link-preview crawlers can't
- * execute JavaScript in. See that function's own file header for the
- * full explanation.
+ * The link to share for a specific item: just the plain app address
+ * (lendeia.com/?item=...). The rich preview (name, square photo, site
+ * name) is produced for link-preview crawlers only - vercel.json hands
+ * their request to the share Edge Function (supabase/functions/
+ * share-item), because this is a client-rendered SPA that crawlers
+ * can't read tags out of. People clicking the link just get the app.
  * @param {string} itemId
  * @returns {string}
  */
 export function getItemSharePreviewUrl(itemId) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  // Deployed on Supabase under the name "dynamic-api" (not "share-item"
-  // — a naming mismatch during deployment, same class of mix-up as
-  // happened with an earlier function). Pointing at wherever it's
-  // actually live rather than making the person redo the deploy.
-  return `${SUPABASE_URL}/functions/v1/${EDGE_FUNCTION_NAMES.share}?id=${encodeURIComponent(itemId)}&origin=${encodeURIComponent(origin)}`;
+  return `${origin}/?item=${encodeURIComponent(itemId)}`;
 }
 
 /**
@@ -66,7 +66,7 @@ export function getItemSharePreviewUrl(itemId) {
  */
 export function getStoreSharePreviewUrl(userId) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${SUPABASE_URL}/functions/v1/${EDGE_FUNCTION_NAMES.share}?store=${encodeURIComponent(userId)}&origin=${encodeURIComponent(origin)}`;
+  return `${origin}/?store=${encodeURIComponent(userId)}`;
 }
 
 /**

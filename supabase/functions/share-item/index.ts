@@ -13,7 +13,7 @@
 //   with NO JavaScript required to see them.
 //   A real human clicking the resulting Facebook card lands here too,
 //   for a split second, then gets redirected on to the actual
-//   interactive page — the meta refresh + JS redirect below. Crawlers
+//   interactive page - a real HTTP redirect for people (not for crawlers). Crawlers
 //   don't run either of those, so they only ever see the static
 //   preview markup.
 // CONNECTS TO :
@@ -72,8 +72,6 @@ function renderHtml(
     <meta name="twitter:title" content="${title}" />
     <meta name="twitter:description" content="${description}" />
     ${squares[0] ? `<meta name="twitter:image" content="${escapeHtml(squares[0])}" />` : ""}
-    <meta http-equiv="refresh" content="0; url=${escapeHtml(appUrl)}" />
-    <script>window.location.replace(${JSON.stringify(appUrl)});</script>
   </head>
   <body>
     <p>Redirecting to <a href="${escapeHtml(appUrl)}">${title}</a> on ${SITE_NAME}...</p>
@@ -81,41 +79,53 @@ function renderHtml(
 </html>`;
 }
 
+// Link-preview crawlers (Facebook, Messenger, WhatsApp, X, LinkedIn,
+// Slack, Telegram, Discord...) get the tag page; everyone else gets an
+// instant real redirect into the app. Facebook re-scrapes whatever URL
+// the page names as og:url ("canonical"), so the tags must be served
+// to crawlers at that address too - vercel.json does that by handing
+// crawler requests for lendeia.com/?item=... and /?store=... to this
+// function. ?debug=1 forces the tag page for any browser, for testing.
+const CRAWLER_UA =
+  /facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|whatsapp|telegrambot|discordbot|pinterest|skypeuripreview|redditbot|embedly|vkshare|applebot|googlebot|bingbot/i;
+
+function htmlResponse(html: string): Response {
+  return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+}
+
+function goHome(appOrigin: string): Response {
+  if (!appOrigin) return new Response("Not found", { status: 404 });
+  return Response.redirect(appOrigin, 302);
+}
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   const itemId = url.searchParams.get("id");
   const storeId = url.searchParams.get("store");
   const appOrigin = url.searchParams.get("origin") || "";
+  const isCrawler =
+    CRAWLER_UA.test(req.headers.get("user-agent") || "") || url.searchParams.get("debug") === "1";
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   if (storeId) {
     const appUrl = appOrigin ? `${appOrigin}/?store=${storeId}` : `/?store=${storeId}`;
+    if (!isCrawler && appOrigin) return Response.redirect(appUrl, 302);
+
     const { data: user } = await supabase
       .from("users")
       .select("name, avatar_url, bio, city")
       .eq("id", storeId)
       .maybeSingle();
-
-    if (!user) {
-      return Response.redirect(appOrigin || "/", 302);
-    }
+    if (!user) return goHome(appOrigin);
 
     const title = escapeHtml(user.name ? `${user.name}'s Store` : "Store on Lendeia");
     const descParts = [user.bio, user.city].filter(Boolean);
     const description = escapeHtml(
       descParts.length ? descParts.join(" - ") : "See what this owner has listed for rent on Lendeia."
     );
-    // The person's own profile photo — this is the actual fix for
-    // "shows a photo of my store profile and name" — previously
-    // Profile.jsx's share button didn't reference the store at all
-    // (shared generic app text), and OwnerStore.jsx's had no rich
-    // preview data behind it either.
     const logoFallback = appOrigin ? `${appOrigin}/apple-touch-icon.png` : null;
     const images = user.avatar_url ? [user.avatar_url] : logoFallback ? [logoFallback] : [];
-
-    return new Response(renderHtml(title, description, images, appUrl, { ogType: "profile" }), {
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    });
+    return htmlResponse(renderHtml(title, description, images, appUrl, { ogType: "profile" }));
   }
 
   if (!itemId) {
@@ -123,15 +133,14 @@ Deno.serve(async (req) => {
   }
 
   const appUrl = appOrigin ? `${appOrigin}/?item=${itemId}` : `/?item=${itemId}`;
+  if (!isCrawler && appOrigin) return Response.redirect(appUrl, 302);
+
   const { data: listing } = await supabase
     .from("listings")
     .select("name, description, primary_image_url, photo_urls, price_per_day, location, is_active")
     .eq("id", itemId)
     .maybeSingle();
-
-  if (!listing || !listing.is_active) {
-    return Response.redirect(appOrigin || "/", 302);
-  }
+  if (!listing || !listing.is_active) return goHome(appOrigin);
 
   const title = escapeHtml(listing.name || "Item on Lendeia");
   const baseDescription = listing.description
@@ -148,7 +157,5 @@ Deno.serve(async (req) => {
   );
   const images: string[] = photos.length ? photos : logoFallback ? [logoFallback] : [];
 
-  return new Response(renderHtml(title, description, images, appUrl), {
-    headers: { "Content-Type": "text/html; charset=utf-8" },
-  });
+  return htmlResponse(renderHtml(title, description, images, appUrl));
 });
