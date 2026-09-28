@@ -21,6 +21,18 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY;
 
+// The names of the Edge Functions as they are deployed in THIS
+// Supabase project. Supabase gives functions random names when
+// deployed through the dashboard editor (e.g. "quick-api"), and names
+// can't be changed afterwards, so the app looks them up here instead
+// of hardcoding them in several files. If a function is ever
+// redeployed under a different name, this is the only place to edit.
+export const EDGE_FUNCTION_NAMES = {
+  share: "quick-api", // supabase/functions/share-item/index.ts (rich link previews)
+  checkout: "create-checkout", // supabase/functions/create-checkout/index.ts
+  deleteAccount: "delete-account", // supabase/functions/delete-account/index.ts
+};
+
 let _client = null;
 
 /**
@@ -40,7 +52,7 @@ export function getItemSharePreviewUrl(itemId) {
   // — a naming mismatch during deployment, same class of mix-up as
   // happened with an earlier function). Pointing at wherever it's
   // actually live rather than making the person redo the deploy.
-  return `${SUPABASE_URL}/functions/v1/dynamic-api?id=${encodeURIComponent(itemId)}&origin=${encodeURIComponent(origin)}`;
+  return `${SUPABASE_URL}/functions/v1/${EDGE_FUNCTION_NAMES.share}?id=${encodeURIComponent(itemId)}&origin=${encodeURIComponent(origin)}`;
 }
 
 /**
@@ -54,7 +66,7 @@ export function getItemSharePreviewUrl(itemId) {
  */
 export function getStoreSharePreviewUrl(userId) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${SUPABASE_URL}/functions/v1/dynamic-api?store=${encodeURIComponent(userId)}&origin=${encodeURIComponent(origin)}`;
+  return `${SUPABASE_URL}/functions/v1/${EDGE_FUNCTION_NAMES.share}?store=${encodeURIComponent(userId)}&origin=${encodeURIComponent(origin)}`;
 }
 
 /**

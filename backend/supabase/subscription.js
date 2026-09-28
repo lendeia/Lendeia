@@ -16,7 +16,7 @@
 //   badge, Profile.jsx's subscription section, and
 //   frontend/pages/ListEquipment/ListEquipment.jsx.
 // ==================================================================
-import { getSupabaseClient } from "./client";
+import { getSupabaseClient, EDGE_FUNCTION_NAMES } from "./client";
 
 /**
  * @typedef {"free"|"standard"|"featured"} PlanId
@@ -105,7 +105,7 @@ export async function startPlanCheckout(planId) {
   const successUrl = `${window.location.origin}${window.location.pathname}?checkout=success&plan=${planId}`;
   const cancelUrl = `${window.location.origin}${window.location.pathname}?checkout=cancelled`;
 
-  const { data, error } = await supabase.functions.invoke("create-checkout", {
+  const { data, error } = await supabase.functions.invoke(EDGE_FUNCTION_NAMES.checkout, {
     body: { planId, successUrl, cancelUrl },
   });
   if (error) throw new Error(error.message || "Could not start checkout. Please try again.");

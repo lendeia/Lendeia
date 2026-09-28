@@ -10,11 +10,11 @@
 // CONNECTS TO :
 //   Used by frontend/pages/Profile/Profile.jsx's "Delete Account" flow.
 // ==================================================================
-import { getSupabaseClient } from "./client";
+import { getSupabaseClient, EDGE_FUNCTION_NAMES } from "./client";
 
 export async function deleteMyAccount() {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.functions.invoke("delete-account");
+  const { data, error } = await supabase.functions.invoke(EDGE_FUNCTION_NAMES.deleteAccount);
   if (error) throw new Error(error.message || "Couldn't delete your account. Please try again.");
   if (data?.error) throw new Error(data.error);
   return true;
