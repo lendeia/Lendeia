@@ -27,38 +27,56 @@ function escapeHtml(s: string): string {
   return (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
 }
 
+const SITE_NAME = "Lendeia";
+
+// Facebook (and most platforms) decide the card layout from the real
+// shape of the og:image: a square image gets the compact square-thumbnail
+// card, a wide one gets the big banner card. Owners upload photos in
+// whatever shape they like, so every image is run through wsrv.nl (a
+// free, open-source image resizing proxy) which center-crops it to a
+// true 600x600 square. If that service is ever unavailable the card
+// just falls back to Facebook's own handling of the original photo.
+function squareImage(url: string): string {
+  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=600&h=600&fit=cover&output=jpg&q=85`;
+}
+
 function renderHtml(
   title: string,
   description: string,
   images: string[],
   appUrl: string,
-  opts: { compact?: boolean; ogType?: string } = {}
+  opts: { ogType?: string } = {}
 ): string {
-  const imageTags = images.map((img) => `<meta property="og:image" content="${escapeHtml(img)}" />`).join("\n    ");
-  // compact = a small icon-style card (Twitter's "summary") instead of
-  // a big full-width photo card ("summary_large_image") — used for a
-  // store/profile share, which is just a simple link, not a product
-  // listing that should visually lead with a big photo.
-  const twitterCard = opts.compact ? "summary" : "summary_large_image";
+  const squares = images.map(squareImage);
+  const imageTags = squares
+    .map(
+      (img) =>
+        `<meta property="og:image" content="${escapeHtml(img)}" />
+    <meta property="og:image:width" content="600" />
+    <meta property="og:image:height" content="600" />`
+    )
+    .join("\n    ");
   return `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>${title} - Lendeia</title>
+    <title>${title} | ${SITE_NAME}</title>
+    <meta property="og:site_name" content="${SITE_NAME}" />
     <meta property="og:title" content="${title}" />
     <meta property="og:description" content="${description}" />
     ${imageTags}
+    ${squares[0] ? `<meta property="og:image:alt" content="${title}" />` : ""}
     <meta property="og:url" content="${escapeHtml(appUrl)}" />
     <meta property="og:type" content="${opts.ogType || "product"}" />
-    <meta name="twitter:card" content="${twitterCard}" />
+    <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="${title}" />
     <meta name="twitter:description" content="${description}" />
-    ${images[0] ? `<meta name="twitter:image" content="${escapeHtml(images[0])}" />` : ""}
+    ${squares[0] ? `<meta name="twitter:image" content="${escapeHtml(squares[0])}" />` : ""}
     <meta http-equiv="refresh" content="0; url=${escapeHtml(appUrl)}" />
     <script>window.location.replace(${JSON.stringify(appUrl)});</script>
   </head>
   <body>
-    <p>Redirecting to <a href="${escapeHtml(appUrl)}">${title}</a> on Lendeia...</p>
+    <p>Redirecting to <a href="${escapeHtml(appUrl)}">${title}</a> on ${SITE_NAME}...</p>
   </body>
 </html>`;
 }
@@ -92,9 +110,10 @@ Deno.serve(async (req) => {
     // Profile.jsx's share button didn't reference the store at all
     // (shared generic app text), and OwnerStore.jsx's had no rich
     // preview data behind it either.
-    const images = user.avatar_url ? [user.avatar_url] : [];
+    const logoFallback = appOrigin ? `${appOrigin}/apple-touch-icon.png` : null;
+    const images = user.avatar_url ? [user.avatar_url] : logoFallback ? [logoFallback] : [];
 
-    return new Response(renderHtml(title, description, images, appUrl, { compact: true, ogType: "profile" }), {
+    return new Response(renderHtml(title, description, images, appUrl, { ogType: "profile" }), {
       headers: { "Content-Type": "text/html; charset=utf-8" },
     });
   }
@@ -121,9 +140,13 @@ Deno.serve(async (req) => {
   const description = escapeHtml(
     listing.location ? `${baseDescription} - ${listing.location}` : baseDescription
   );
-  const images: string[] = Array.from(
-    new Set([listing.primary_image_url, ...(listing.photo_urls || [])].filter(Boolean))
+  // The listing's FIRST photo leads (that's what the card shows);
+  // any further photos follow as extra og:image entries.
+  const logoFallback = appOrigin ? `${appOrigin}/apple-touch-icon.png` : null;
+  const photos: string[] = Array.from(
+    new Set([...(listing.photo_urls || []), listing.primary_image_url].filter(Boolean))
   );
+  const images: string[] = photos.length ? photos : logoFallback ? [logoFallback] : [];
 
   return new Response(renderHtml(title, description, images, appUrl), {
     headers: { "Content-Type": "text/html; charset=utf-8" },

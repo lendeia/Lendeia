@@ -363,7 +363,7 @@ export function BottomNav({ page, setPage }) {
   const unreadCount = useUnreadMessageCount();
 
   return (
-    <div className="bg-white/95 backdrop-blur-md border-t border-[#17231D]/[0.06] md:hidden fixed bottom-0 left-0 right-0 z-40 px-2 pt-2 pb-[env(safe-area-inset-bottom,10px)]">
+    <div className="bg-white/95 backdrop-blur-md border-t border-[#17231D]/[0.06] md:hidden fixed bottom-0 left-0 right-0 z-[1500] px-2 pt-2 pb-[env(safe-area-inset-bottom,10px)]">
       <div className="flex justify-between">
         {BOTTOM_NAV_ITEMS.map(([key, label, Icon]) => {
           const isProfile = key === "profile";

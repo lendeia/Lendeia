@@ -345,7 +345,7 @@ export default function MapPage({ openItem }) {
     // visually paint right over them on phones/tablets. 132px leaves
     // room for both; desktop is unaffected (BottomNav is md:hidden
     // there, and the existing 84px already accounts for its own top nav).
-    <div className="relative h-[calc(100vh-132px)] md:h-[calc(100vh-84px)]">
+    <div className="relative isolate h-[calc(100vh-132px)] md:h-[calc(100vh-84px)]">
       <div ref={mapContainerRef} className="absolute inset-0" style={{ background: "#E4E0D0" }} />
 
       {(!leafletReady || locating) && (
