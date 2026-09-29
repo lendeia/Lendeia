@@ -365,7 +365,13 @@ export function BottomNav({ page, setPage }) {
   return (
     <div className="bg-white/95 backdrop-blur-md border-t border-[#17231D]/[0.06] md:hidden fixed bottom-0 left-0 right-0 z-[1500] px-2 pt-2 pb-[env(safe-area-inset-bottom,10px)]">
       <div className="flex justify-between">
-        {BOTTOM_NAV_ITEMS.map(([key, label, Icon]) => {
+        {/* Messages hidden for a guest account here too, matching the
+            desktop top nav's existing behavior — previously this list
+            had no such check at all, so a guest saw "Messages" on
+            mobile but not on desktop, an inconsistency with no reason
+            behind it (messaging needs a real, persistent account since
+            a guest session can't be reliably reached again later). */}
+        {BOTTOM_NAV_ITEMS.filter(([key]) => key !== "messages" || (account && !account.isAnonymous)).map(([key, label, Icon]) => {
           const isProfile = key === "profile";
           const displayLabel = isProfile && !account ? "Log in" : label;
           return (
