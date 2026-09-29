@@ -69,7 +69,7 @@ export async function getAllSupportRequests() {
       "id, user_id, category, message, listing_id, reported_user_id, status, created_at, " +
       "users:user_id(name, email), " +
       "reported_user:reported_user_id(name, email), " +
-      "listings:listing_id(name, owner:owner_id(name, email))"
+      "listings:listing_id(name, owner:owner_id(id, name, email))"
     )
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -84,6 +84,14 @@ export async function getAllSupportRequests() {
     // reported without a separate manual lookup.
     const reportedName = r.reported_user?.name || r.listings?.owner?.name || null;
     const reportedEmail = r.reported_user?.email || r.listings?.owner?.email || null;
+    // One consistent id to actually take action against, regardless of
+    // whether this was a direct "report a user" (reported_user_id) or
+    // a "report a listing" (only listing_id, with the owner found via
+    // the join above) — previously only the raw reported_user_id was
+    // returned, which was null for every listing report, making it
+    // impossible to act on the person actually being reported in that
+    // case at all.
+    const actionableUserId = r.reported_user_id || r.listings?.owner?.id || null;
     return {
       id: r.id,
       userId: r.user_id,
@@ -94,6 +102,7 @@ export async function getAllSupportRequests() {
       listingId: r.listing_id,
       listingName: r.listings?.name || null,
       reportedUserId: r.reported_user_id,
+      actionableUserId,
       reportedName,
       reportedEmail,
       status: r.status,
@@ -113,4 +122,158 @@ export async function updateSupportRequestStatus(requestId, status) {
     .update({ status })
     .eq("id", requestId);
   if (error) throw error;
+}
+
+const ACTION_NOTICE = {
+  warn: (reason) => ({
+    title: "Account warning",
+    body: `Your account has received a warning: ${reason}. Please review Lendeia's Community Guidelines.`,
+  }),
+  restrict: (reason) => ({
+    title: "Account restricted",
+    body: `Some account actions have been temporarily limited: ${reason}. Contact support if you believe this is a mistake.`,
+  }),
+  unrestrict: () => ({
+    title: "Restriction lifted",
+    body: "The limits on your account have been removed. You have full access again.",
+  }),
+  suspend: (reason, until) => ({
+    title: "Account suspended",
+    body: `Your account has been suspended until ${new Date(until).toLocaleDateString()}: ${reason}.`,
+  }),
+  unsuspend: () => ({
+    title: "Suspension lifted",
+    body: "Your account is active again.",
+  }),
+  ban: (reason) => ({
+    title: "Account banned",
+    body: `Your account has been banned from Lendeia: ${reason}.`,
+  }),
+  unban: () => ({
+    title: "Account reinstated",
+    body: "Your account has been reinstated and is active again.",
+  }),
+};
+
+/**
+ * Applies a real moderation action to a user's account: updates their
+ * status, writes an audit-log row (database/schema/
+ * trust_safety_account_status.sql's admin_actions table), and sends
+ * them a plain-language notification explaining what happened and why
+ * — matching the Trust & Safety document's "don't silently punish
+ * people" principle. Real access control is the is_admin_or_owner()
+ * database check behind every write here, not this function itself.
+ * @param {{
+ *   targetUserId: string,
+ *   action: 'warn'|'restrict'|'unrestrict'|'suspend'|'unsuspend'|'ban'|'unban',
+ *   reason: string,
+ *   suspendDays?: number,      // required for 'suspend'
+ *   restrictedActions?: string[], // for 'restrict', defaults to ['create_listing']
+ *   relatedReportId?: string,  // optional — links this action back to the report that prompted it
+ * }} params
+ */
+export async function applyAccountAction({ targetUserId, action, reason, suspendDays, restrictedActions, relatedReportId }) {
+  const supabase = getSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+  if (!reason?.trim()) throw new Error("A reason is required for every account action.");
+
+  let suspendedUntil = null;
+  const patch = {};
+  if (action === "warn") {
+    // No status change — a warning is a notice on record, not a
+    // restriction on the account itself.
+  } else if (action === "restrict") {
+    patch.account_status = "restricted";
+    patch.status_reason = reason;
+    patch.restricted_actions = restrictedActions?.length ? restrictedActions : ["create_listing"];
+  } else if (action === "unrestrict") {
+    patch.account_status = "active";
+    patch.status_reason = null;
+    patch.restricted_actions = [];
+  } else if (action === "suspend") {
+    if (!suspendDays || suspendDays <= 0) throw new Error("A suspension needs a duration.");
+    suspendedUntil = new Date(Date.now() + suspendDays * 24 * 60 * 60 * 1000).toISOString();
+    patch.account_status = "suspended";
+    patch.status_reason = reason;
+    patch.suspended_until = suspendedUntil;
+  } else if (action === "unsuspend") {
+    patch.account_status = "active";
+    patch.status_reason = null;
+    patch.suspended_until = null;
+  } else if (action === "ban") {
+    patch.account_status = "banned";
+    patch.status_reason = reason;
+    patch.suspended_until = null;
+  } else if (action === "unban") {
+    patch.account_status = "active";
+    patch.status_reason = null;
+  } else {
+    throw new Error(`Unknown action: ${action}`);
+  }
+
+  if (Object.keys(patch).length > 0) {
+    const { error: updateError } = await supabase.from("users").update(patch).eq("id", targetUserId);
+    if (updateError) throw updateError;
+  }
+
+  const { error: logError } = await supabase.from("admin_actions").insert({
+    admin_id: user.id,
+    target_user_id: targetUserId,
+    action,
+    reason,
+    suspended_until: suspendedUntil,
+    related_report_id: relatedReportId || null,
+  });
+  if (logError) throw logError;
+
+  const notice = ACTION_NOTICE[action]?.(reason, suspendedUntil);
+  if (notice) {
+    // Best-effort — a moderation action itself already succeeded above
+    // (the important part), so a failure here shouldn't be treated as
+    // the whole operation failing. It just means the person finds out
+    // from their account status directly rather than a notification.
+    await supabase.from("notifications").insert({
+      user_id: targetUserId,
+      type: "account_action",
+      title: notice.title,
+      body: notice.body,
+    }).then(null, () => {});
+  }
+}
+
+/**
+ * A user's current status plus their full moderation history — for the
+ * admin reviewing a report to see the real picture (previous warnings,
+ * restrictions, etc.) before deciding on an action, matching the
+ * document's "don't act on a single report in isolation" principle.
+ * @param {string} userId
+ */
+export async function getUserModerationInfo(userId) {
+  const supabase = getSupabaseClient();
+  const { data: userRow, error: userError } = await supabase
+    .from("users")
+    .select("id, name, email, account_status, status_reason, suspended_until, restricted_actions")
+    .eq("id", userId)
+    .maybeSingle();
+  if (userError) throw userError;
+
+  const { data: actions, error: actionsError } = await supabase
+    .from("admin_actions")
+    .select("id, action, reason, suspended_until, created_at, admin:admin_id(name)")
+    .eq("target_user_id", userId)
+    .order("created_at", { ascending: false });
+  if (actionsError) throw actionsError;
+
+  return {
+    user: userRow,
+    actions: (actions || []).map((a) => ({
+      id: a.id,
+      action: a.action,
+      reason: a.reason,
+      suspendedUntil: a.suspended_until,
+      createdAt: a.created_at,
+      adminName: a.admin?.name || "Admin",
+    })),
+  };
 }

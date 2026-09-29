@@ -29,6 +29,7 @@ import Legal from "./pages/Legal/Legal";
 import Help from "./pages/Help/Help";
 import PaymentConfirmationOverlay from "./components/PaymentConfirmationOverlay";
 import DeviceBlockedOverlay from "./components/DeviceBlockedOverlay";
+import AccountActionOverlay from "./components/AccountActionOverlay";
 import { getListingIfVisible } from "../backend/supabase/listings";
 
 import { ListingsProvider } from "../state/listings/listingsStore";
@@ -39,7 +40,7 @@ import { LocationProvider } from "../state/location/locationStore";
 import { SavedListingsProvider } from "../state/saved/savedStore";
 
 function AppShell() {
-  const { deviceBlockedReason, clearDeviceBlockedReason } = useAuth();
+  const { deviceBlockedReason, clearDeviceBlockedReason, accountActionReason, clearAccountActionReason } = useAuth();
   // Previously showed a full-bleed marketing "welcome" page first
   // (frontend/pages/Welcome/Welcome.jsx) before the real app — removed
   // per explicit request; the app now opens directly to Home. Its
@@ -298,6 +299,9 @@ function AppShell() {
     )}
     {deviceBlockedReason && (
       <DeviceBlockedOverlay reason={deviceBlockedReason} onClose={clearDeviceBlockedReason} />
+    )}
+    {accountActionReason && (
+      <AccountActionOverlay reason={accountActionReason} onClose={clearAccountActionReason} />
     )}
     </>
   );

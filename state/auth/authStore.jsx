@@ -56,6 +56,8 @@ const initialAuthState = {
   // a blocking overlay whenever this is non-null.
   deviceBlockedReason: null,
   clearDeviceBlockedReason: () => {},
+  accountActionReason: null,
+  clearAccountActionReason: () => {},
 };
 
 export const AuthContext = createContext(initialAuthState);
@@ -68,6 +70,17 @@ export function AuthProvider({ children }) {
   // Set when a sign-in was just rejected by the device/account-limit
   // check — App.jsx shows a blocking overlay whenever this is non-null.
   const [deviceBlockedReason, setDeviceBlockedReason] = useState(null);
+  // Same pattern, for a banned/suspended account (backend/supabase/
+  // anonymousAuth.js's ensureAnonymousSession()). This has to be a
+  // SEPARATE, persistent piece of state, not just the message in
+  // authError — signing the person out fires a SIGNED_OUT event, which
+  // this same file already reacts to by silently establishing a fresh
+  // anonymous session (the normal, correct behavior for a real
+  // voluntary logout). Without a persistent flag surviving that, the
+  // ban notice would flash briefly and then get quietly overwritten
+  // the moment that new guest session succeeds — someone could end up
+  // never actually seeing why they were signed out.
+  const [accountActionReason, setAccountActionReason] = useState(null);
 
   const checkDeviceAccountLimit = useCallback(async () => {
     try {
@@ -93,6 +106,10 @@ export function AuthProvider({ children }) {
       .then((user) => setAccount(user))
       .catch((err) => {
         console.error("Sign-in failed:", err);
+        if (err.code === "ACCOUNT_BANNED" || err.code === "ACCOUNT_SUSPENDED") {
+          setAccountActionReason(err.message);
+          return;
+        }
         setAuthError(err.message || "Could not connect. Please try again.");
       })
       .finally(() => setAuthLoading(false));
@@ -232,6 +249,8 @@ export function AuthProvider({ children }) {
     clearPasswordRecovery,
     deviceBlockedReason,
     clearDeviceBlockedReason: () => setDeviceBlockedReason(null),
+    accountActionReason,
+    clearAccountActionReason: () => setAccountActionReason(null),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

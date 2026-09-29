@@ -23,7 +23,7 @@
 // ==================================================================
 import React, { useEffect, useState } from "react";
 import { ChevronLeft } from "lucide-react";
-import { getAllSupportRequests, updateSupportRequestStatus } from "../../../backend/supabase/admin";
+import { getAllSupportRequests, updateSupportRequestStatus, applyAccountAction } from "../../../backend/supabase/admin";
 import { SUPPORT_CATEGORIES } from "../../../backend/supabase/support";
 
 const STATUS_FILTERS = [
@@ -46,6 +46,7 @@ export default function Admin({ back, visitStore }) {
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("open");
   const [updatingId, setUpdatingId] = useState(null);
+  const [actingId, setActingId] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -65,6 +66,52 @@ export default function Admin({ back, visitStore }) {
       window.alert(err.message || "Couldn't update that request.");
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  // Every action needs a real, non-empty reason (also enforced server-
+  // side in applyAccountAction itself) — a simple prompt() rather than
+  // a full custom modal, matching how the rest of this admin queue
+  // already handles lightweight actions (window.confirm/alert
+  // elsewhere in this app). Keeping this deliberately unautomated:
+  // every action is a specific admin choosing a specific reason for a
+  // specific person, never a bulk or one-click action.
+  const handleAction = async (report, action) => {
+    const targetUserId = report.actionableUserId;
+    if (!targetUserId) return;
+    const reason = window.prompt(
+      `Reason for this ${action} (shown to the user, and kept on their record)?`
+    );
+    if (!reason?.trim()) return;
+
+    let suspendDays;
+    if (action === "suspend") {
+      const raw = window.prompt("Suspend for how many days?", "7");
+      suspendDays = Number(raw);
+      if (!raw || !Number.isFinite(suspendDays) || suspendDays <= 0) {
+        window.alert("Enter a valid number of days.");
+        return;
+      }
+    }
+
+    if (!window.confirm(`${action[0].toUpperCase()}${action.slice(1)} ${report.reportedName || "this account"}? This is logged and the person is notified.`)) {
+      return;
+    }
+
+    setActingId(report.id);
+    try {
+      await applyAccountAction({
+        targetUserId,
+        action,
+        reason: reason.trim(),
+        suspendDays,
+        relatedReportId: report.id,
+      });
+      window.alert("Done.");
+    } catch (err) {
+      window.alert(err.message || "Couldn't apply that action.");
+    } finally {
+      setActingId(null);
     }
   };
 
@@ -164,6 +211,57 @@ export default function Admin({ back, visitStore }) {
                     View reported user's store
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* Real moderation actions — previously this queue could
+                only mark a REPORT as resolved, with no way to actually
+                do anything to the account it was about. Every action
+                requires a reason, is logged (admin_actions), and
+                notifies the person — see backend/supabase/admin.js's
+                applyAccountAction(). Only shown when there's an
+                identifiable account to act on (a listing report
+                resolves to its owner; see actionableUserId above). */}
+            {r.actionableUserId && (
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-[#17231D]/8">
+                {[
+                  ["warn", "Warn"],
+                  ["restrict", "Restrict"],
+                  ["suspend", "Suspend"],
+                  ["ban", "Ban"],
+                ].map(([action, label]) => (
+                  <button
+                    key={action}
+                    onClick={() => handleAction(r, action)}
+                    disabled={actingId === r.id}
+                    className={`px-3 py-1.5 rounded-full text-[12px] font-medium border disabled:opacity-60 ${
+                      action === "ban"
+                        ? "border-red-300 text-red-700 hover:bg-red-50"
+                        : "border-[#17231D]/15 text-[#17231D] hover:bg-[#17231D]/5"
+                    }`}
+                  >
+                    {actingId === r.id ? "…" : label}
+                  </button>
+                ))}
+                {/* Reversals — same actions, same log, same notice, just
+                    undoing instead of applying. Kept right alongside the
+                    punitive ones so fixing a wrong call is never harder
+                    to find than making one. */}
+                <span className="w-full h-0" />
+                {[
+                  ["unrestrict", "Remove restriction"],
+                  ["unsuspend", "Remove suspension"],
+                  ["unban", "Remove ban"],
+                ].map(([action, label]) => (
+                  <button
+                    key={action}
+                    onClick={() => handleAction(r, action)}
+                    disabled={actingId === r.id}
+                    className="px-3 py-1.5 rounded-full text-[12px] font-medium border border-[#4B5D46]/30 text-[#4B5D46] hover:bg-[#4B5D46]/5 disabled:opacity-60"
+                  >
+                    {actingId === r.id ? "…" : label}
+                  </button>
+                ))}
               </div>
             )}
           </div>

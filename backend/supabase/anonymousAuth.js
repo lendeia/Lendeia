@@ -152,6 +152,13 @@ function toAppUser(authUser, userRow) {
     // that actually have a password (an 'email' provider account) — a
     // Google account has nothing to change here.
     authProvider: userRow?.auth_provider || (authUser.is_anonymous ? "anonymous" : null),
+    // Only ever "active" or "restricted" here — banned/suspended
+    // accounts are signed back out and blocked before toAppUser() is
+    // ever called (see ensureAnonymousSession above), so this never
+    // needs to represent those states.
+    accountStatus: userRow?.account_status || "active",
+    statusReason: userRow?.status_reason || null,
+    restrictedActions: userRow?.restricted_actions || [],
     // Real, not fabricated — Supabase's own auth session already tracks
     // whether the account's email was actually confirmed (via the
     // confirmation link for email/password signup, or always true for
@@ -190,16 +197,48 @@ export async function ensureAnonymousSession() {
   await ensureUserRow(authUser);
   await ensureProfileRow(authUser.id);
 
+  // Auto-lifts an expired suspension before checking status, so nobody
+  // stays locked out past when they were actually meant to be — see
+  // database/schema/trust_safety_account_status.sql's
+  // expire_suspension_if_due().
+  await supabase.rpc("expire_suspension_if_due", { target: authUser.id });
+
   // Fetch the authoritative row back out, right after ensuring it
   // exists/is synced — this is what toAppUser() above actually needs to
   // build a correct `account.avatarUrl`/`account.name` from, instead of
   // Supabase's own auth metadata.
   const { data: userRow, error: userRowError } = await supabase
     .from("users")
-    .select("name, avatar_url, auth_provider")
+    .select("name, avatar_url, auth_provider, account_status, status_reason, suspended_until, restricted_actions")
     .eq("id", authUser.id)
     .maybeSingle();
   if (userRowError) throw userRowError;
+
+  // Real enforcement — a ban/suspension actually blocks sign-in here,
+  // not just something the UI chooses to respect. Signs the session
+  // back out immediately so a banned/suspended person can't keep using
+  // an already-open tab either.
+  if (userRow?.account_status === "banned") {
+    await supabase.auth.signOut();
+    const err = new Error(
+      userRow.status_reason
+        ? `Your account has been banned from Lendeia: ${userRow.status_reason}.`
+        : "Your account has been banned from Lendeia."
+    );
+    err.code = "ACCOUNT_BANNED";
+    throw err;
+  }
+  if (userRow?.account_status === "suspended" && userRow.suspended_until && new Date(userRow.suspended_until) > new Date()) {
+    await supabase.auth.signOut();
+    const until = new Date(userRow.suspended_until).toLocaleDateString();
+    const err = new Error(
+      userRow.status_reason
+        ? `Your account is suspended until ${until}: ${userRow.status_reason}.`
+        : `Your account is suspended until ${until}.`
+    );
+    err.code = "ACCOUNT_SUSPENDED";
+    throw err;
+  }
 
   return toAppUser(authUser, userRow);
 }
