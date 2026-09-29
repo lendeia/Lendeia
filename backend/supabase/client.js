@@ -33,7 +33,7 @@ export const EDGE_FUNCTION_NAMES = {
   // ask for lendeia.com/?item=... to ".../functions/v1/quick-api".
   // If this function is ever redeployed under a different name, update
   // the name inside vercel.json too.
-  share: "quick-api", // supabase/functions/share-item/index.ts
+  share: "hyper-endpoint", // supabase/functions/share-item/index.ts
   checkout: "create-checkout", // supabase/functions/create-checkout/index.ts
   deleteAccount: "delete-account", // supabase/functions/delete-account/index.ts
 };
