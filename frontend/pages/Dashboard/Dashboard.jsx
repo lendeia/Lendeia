@@ -1341,12 +1341,16 @@ export default function Dashboard({ openItem, visitProfile, viewReceipt }) {
   return (
     <div className="px-6 md:px-12 py-8 pb-24 md:pb-12">
       <h1 className="font-serif text-[26px] md:text-[30px] text-[#17231D]">Dashboard</h1>
-      <div className="flex gap-2 mt-5 overflow-x-auto">
+      {/* flex-1 on each button makes all 5 tabs share the row equally
+          instead of each being only as wide as its own label — "My
+          History" (the longest label) was noticeably wider than the
+          others before, since width just followed text length. */}
+      <div className="flex gap-2 mt-5">
         {TABS.map(([k, l]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
-            className={`shrink-0 px-4 py-2 rounded-full text-[13.5px] font-medium border ${
+            className={`flex-1 px-2 md:px-4 py-2 rounded-full text-[12.5px] md:text-[13.5px] font-medium border text-center whitespace-nowrap ${
               tab === k ? "bg-[#17231D] text-[#F6F4EE] border-[#17231D]" : "border-[#17231D]/15 text-[#17231D]"
             }`}
           >

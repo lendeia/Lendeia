@@ -168,7 +168,14 @@ export default function MainLayout({ page, setPage, children, goToLegal, goToHel
 
       <Navbar page={page} setPage={setPage} />
 
-      <main className="pt-[60px] md:pt-[72px] relative">
+      {/* min-h forces this to fill at least the full screen below the
+          nav — previously a short/empty page (like Browse with no
+          results, or a fresh Dashboard tab) let the footer show up
+          almost immediately below the content, which looked like the
+          page had barely any content at all. Now there's always a
+          proper scroll before the footer, consistent across every
+          page, on both mobile and desktop. */}
+      <main className="pt-[60px] md:pt-[72px] min-h-[calc(100vh-60px)] md:min-h-[calc(100vh-72px)] relative">
         <LocationBanner />
         {children}
       </main>
