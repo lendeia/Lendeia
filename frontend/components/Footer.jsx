@@ -14,7 +14,7 @@
 //   goToHelp from App.jsx.
 // ==================================================================
 import React from "react";
-import { Mail, MessageCircle, AlertCircle, Search, Facebook } from "lucide-react";
+import { Mail, MessageCircle, AlertCircle, Search, Facebook, Instagram, Twitter, Youtube, Linkedin } from "lucide-react";
 
 const LEGAL_LINKS = [
   ["terms", "Terms & Conditions"],
@@ -26,6 +26,16 @@ const LEGAL_LINKS = [
   ["community", "Community Guidelines"],
   ["prohibited", "Prohibited Items"],
   ["disputes", "Dispute Resolution"],
+];
+
+// Every social page in one place, kept separate from LEGAL_LINKS and
+// the Contact & Support grid on purpose so this list can grow on its
+// own — adding Instagram, TikTok, X, YouTube, etc. later is just one
+// more line here, not new markup in the JSX below. Icon is the
+// matching lucide-react component (already imported above for the
+// common ones); label is what shows next to it.
+const SOCIAL_LINKS = [
+  ["Facebook", Facebook, "https://www.facebook.com/share/1EjR5TH8pP/?mibextid=wwXIfr"],
 ];
 
 export default function Footer({ goToLegal, goToHelp }) {
@@ -49,18 +59,30 @@ export default function Footer({ goToLegal, goToHelp }) {
           <button onClick={() => goToHelp?.()} className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-1 transition-all text-left">
             <Search size={16} className="text-[#E2932E]" /> Help / FAQ
           </button>
-          {/* Real business Facebook page — opens in a new tab, same as
-              any other external link, so people don't lose their place
-              on the site. */}
-          <a
-            href="https://www.facebook.com/share/1EjR5TH8pP/?mibextid=wwXIfr"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-1 transition-all"
-          >
-            <Facebook size={16} className="text-[#E2932E]" /> Lendeia on Facebook
-          </a>
         </div>
+
+        {/* Social pages — its own clearly separated row, not merged
+            into the support grid above, so this stays organized as
+            more platforms get added later (SOCIAL_LINKS above is the
+            only thing that needs editing to add one). */}
+        {SOCIAL_LINKS.length > 0 && (
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <p className="text-[12.5px] font-medium text-white/60 mb-3">Follow us</p>
+            <div className="flex flex-wrap gap-2.5">
+              {SOCIAL_LINKS.map(([label, Icon, url]) => (
+                <a
+                  key={label}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-full border border-white/15 text-[13px] text-white/85 hover:text-white hover:border-white/30 transition-colors"
+                >
+                  <Icon size={15} className="text-[#E2932E]" /> {label}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-8 pt-6 border-t border-white/10 text-[12.5px] text-white/60">
           <span className="font-medium text-white/85">Legal</span>
