@@ -37,7 +37,11 @@ const SITE_NAME = "Lendeia";
 // true 600x600 square. If that service is ever unavailable the card
 // just falls back to Facebook's own handling of the original photo.
 function squareImage(url: string): string {
-  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=600&h=600&fit=cover&output=jpg&q=85`;
+  // fit=contain (not cover) shows the WHOLE photo, adding white
+  // padding on the shorter side instead of cropping/zooming into it -
+  // cover was filling the square by cutting off the edges of whatever
+  // wasn't already square, which is what looked "too zoomed in".
+  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=600&h=600&fit=contain&cbg=white&output=jpg&q=85`;
 }
 
 function renderHtml(

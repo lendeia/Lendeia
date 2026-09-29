@@ -9,6 +9,24 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-256.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Lendeia</title>
+
+    <!-- Homepage share preview - the root address "/" is a real static
+         file, unlike a specific item/store link, so it doesn't need the
+         Edge Function/vercel.json trick those use; a crawler reading
+         this file directly already sees these tags. Uses the same logo
+         set up above for the browser tab icon. -->
+    <meta property="og:site_name" content="Lendeia" />
+    <meta property="og:title" content="Lendeia - Rent What You Need, Earn From What You Own" />
+    <meta property="og:description" content="Find items near you to rent, or list your own unused items and start earning." />
+    <meta property="og:image" content="https://www.lendeia.com/favicon-256.png" />
+    <meta property="og:image:width" content="256" />
+    <meta property="og:image:height" content="256" />
+    <meta property="og:url" content="https://www.lendeia.com/" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Lendeia" />
+    <meta name="twitter:description" content="Find items near you to rent, or list your own unused items and start earning." />
+    <meta name="twitter:image" content="https://www.lendeia.com/favicon-256.png" />
   </head>
   <body>
     <div id="root"></div>
