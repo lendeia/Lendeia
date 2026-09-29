@@ -363,7 +363,10 @@ export function BottomNav({ page, setPage }) {
   const unreadCount = useUnreadMessageCount();
 
   return (
-    <div className="bg-white/95 backdrop-blur-md border-t border-[#17231D]/[0.06] md:hidden fixed bottom-0 left-0 right-0 z-[1500] px-2 pt-2 pb-[env(safe-area-inset-bottom,10px)]">
+    <div
+      id="app-bottom-nav"
+      className="bg-white/95 backdrop-blur-md border-t border-[#17231D]/[0.06] md:hidden fixed bottom-0 left-0 right-0 z-[1500] px-2 pt-2 pb-[env(safe-area-inset-bottom,10px)]"
+    >
       <div className="flex justify-between">
         {/* Messages hidden for a guest account here too, matching the
             desktop top nav's existing behavior — previously this list

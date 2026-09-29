@@ -130,6 +130,23 @@ function ReviewerAvatar({ url, name, size = 26 }) {
 }
 
 export default function Details({ item, back, goToLogin, visitStore, goToDashboard, messageUser, goToLegal, goToHelp }) {
+  // Real measured height of the global bottom tab bar, not a guessed
+  // pixel value — a hardcoded guess (64px) previously left a gap on
+  // devices where the real bar is taller (e.g. iPhones with a home
+  // indicator needing extra safe-area padding), which let a strip of
+  // whatever page content was underneath show through between this
+  // bar and the tab bar. Re-measures on resize/orientation change too.
+  const [bottomNavHeight, setBottomNavHeight] = useState(64);
+  useEffect(() => {
+    const measure = () => {
+      const el = document.getElementById("app-bottom-nav");
+      if (el) setBottomNavHeight(el.offsetHeight);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
   const { requests, requestRental, cancelRental } = useRentals();
   const { savedIds, toggleSave } = useSavedListings();
   const { account } = useAuth();
@@ -336,7 +353,7 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
     : `Request — ₱${rentalTotalCost.toLocaleString()}`;
 
   return (
-    <div className="pb-44 md:pb-16">
+    <div style={{ paddingBottom: bottomNavHeight + 80 }} className="md:pb-16">
       <div className="px-6 md:px-12 py-5 flex items-center justify-between">
         <button onClick={back} className="flex items-center gap-1.5 text-[14px] text-[#17231D]/70">
           <ChevronLeft size={17} /> Back
@@ -666,7 +683,7 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
       </div>
 
       {isOwnListing ? (
-        <div className="md:hidden fixed bottom-[64px] left-0 right-0 bg-[#F6F4EE] border-t border-[#17231D]/10 px-5 py-3.5 flex items-center justify-between z-[1100]">
+        <div style={{ bottom: bottomNavHeight }} className="md:hidden fixed left-0 right-0 bg-[#F6F4EE] border-t border-[#17231D]/10 px-5 py-3.5 flex items-center justify-between z-[1100]">
           <div>
             <p className="font-serif text-[19px] text-[#17231D]">
               ₱{item.price}
@@ -682,7 +699,7 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
           </button>
         </div>
       ) : (
-        <div className="md:hidden fixed bottom-[64px] left-0 right-0 bg-[#F6F4EE] border-t border-[#17231D]/10 px-5 py-3.5 flex items-center justify-between z-[1100]">
+        <div style={{ bottom: bottomNavHeight }} className="md:hidden fixed left-0 right-0 bg-[#F6F4EE] border-t border-[#17231D]/10 px-5 py-3.5 flex items-center justify-between z-[1100]">
           <div>
             <p className="font-serif text-[19px] text-[#17231D]">
               ₱{item.price}
