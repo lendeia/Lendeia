@@ -52,7 +52,15 @@ let _client = null;
  */
 export function getItemSharePreviewUrl(itemId) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${origin}/?item=${encodeURIComponent(itemId)}`;
+  // "/l" on purpose, NOT "/" - Vercel always serves the static
+  // index.html directly for the exact root path and never even
+  // consults vercel.json's rewrites for it, no matter what conditions
+  // are on them (a documented Vercel limitation, confirmed by testing:
+  // a rewrite targeting "/" silently never fired). "/l" has no matching
+  // static file, so the crawler rewrite in vercel.json actually runs.
+  // The app's own router reads ?item=/?store= from the query string
+  // regardless of path, so real visitors land here exactly as before.
+  return `${origin}/l?item=${encodeURIComponent(itemId)}`;
 }
 
 /**
@@ -66,7 +74,7 @@ export function getItemSharePreviewUrl(itemId) {
  */
 export function getStoreSharePreviewUrl(userId) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${origin}/?store=${encodeURIComponent(userId)}`;
+  return `${origin}/l?store=${encodeURIComponent(userId)}`;
 }
 
 /**

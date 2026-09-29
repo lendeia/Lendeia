@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/",
+      "source": "/l",
       "has": [
         { "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|WhatsApp|TelegramBot|Discordbot|Pinterest|SkypeUriPreview|redditbot).*" },
         { "type": "query", "key": "item", "value": "(?<itemid>.+)" }
@@ -9,12 +9,13 @@
       "destination": "https://mwyuydczwofzhzzrihtt.supabase.co/functions/v1/quick-api?id=:itemid&origin=https://www.lendeia.com"
     },
     {
-      "source": "/",
+      "source": "/l",
       "has": [
         { "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|WhatsApp|TelegramBot|Discordbot|Pinterest|SkypeUriPreview|redditbot).*" },
         { "type": "query", "key": "store", "value": "(?<storeid>.+)" }
       ],
       "destination": "https://mwyuydczwofzhzzrihtt.supabase.co/functions/v1/quick-api?store=:storeid&origin=https://www.lendeia.com"
-    }
+    },
+    { "source": "/((?!functions/).*)", "destination": "/index.html" }
   ]
 }
