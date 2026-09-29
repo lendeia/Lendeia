@@ -336,7 +336,7 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
     : `Request — ₱${rentalTotalCost.toLocaleString()}`;
 
   return (
-    <div className="pb-28 md:pb-16">
+    <div className="pb-44 md:pb-16">
       <div className="px-6 md:px-12 py-5 flex items-center justify-between">
         <button onClick={back} className="flex items-center gap-1.5 text-[14px] text-[#17231D]/70">
           <ChevronLeft size={17} /> Back
@@ -666,7 +666,7 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
       </div>
 
       {isOwnListing ? (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#F6F4EE] border-t border-[#17231D]/10 px-5 py-3.5 flex items-center justify-between z-[1100]">
+        <div className="md:hidden fixed bottom-[64px] left-0 right-0 bg-[#F6F4EE] border-t border-[#17231D]/10 px-5 py-3.5 flex items-center justify-between z-[1100]">
           <div>
             <p className="font-serif text-[19px] text-[#17231D]">
               ₱{item.price}
@@ -682,7 +682,7 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
           </button>
         </div>
       ) : (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#F6F4EE] border-t border-[#17231D]/10 px-5 py-3.5 flex items-center justify-between z-[1100]">
+        <div className="md:hidden fixed bottom-[64px] left-0 right-0 bg-[#F6F4EE] border-t border-[#17231D]/10 px-5 py-3.5 flex items-center justify-between z-[1100]">
           <div>
             <p className="font-serif text-[19px] text-[#17231D]">
               ₱{item.price}

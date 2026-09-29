@@ -29,21 +29,6 @@ function escapeHtml(s: string): string {
 
 const SITE_NAME = "Lendeia";
 
-// Facebook (and most platforms) decide the card layout from the real
-// shape of the og:image: a square image gets the compact square-thumbnail
-// card, a wide one gets the big banner card. Owners upload photos in
-// whatever shape they like, so every image is run through wsrv.nl (a
-// free, open-source image resizing proxy) which center-crops it to a
-// true 600x600 square. If that service is ever unavailable the card
-// just falls back to Facebook's own handling of the original photo.
-function squareImage(url: string): string {
-  // fit=contain (not cover) shows the WHOLE photo, adding white
-  // padding on the shorter side instead of cropping/zooming into it -
-  // cover was filling the square by cutting off the edges of whatever
-  // wasn't already square, which is what looked "too zoomed in".
-  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=600&h=600&fit=contain&cbg=white&output=jpg&q=85`;
-}
-
 function renderHtml(
   title: string,
   description: string,
@@ -51,14 +36,17 @@ function renderHtml(
   appUrl: string,
   opts: { ogType?: string } = {}
 ): string {
-  const squares = images.map(squareImage);
+  // Real, direct photo URLs - a third-party image-resizing proxy
+  // (wsrv.nl) was tried here to force every photo into a square, but
+  // Facebook's own crawler couldn't reliably fetch images back through
+  // it ("Corrupted Image" in the Sharing Debugger, even though the
+  // original photo works fine everywhere else) - most likely wsrv.nl
+  // rate-limiting or blocking Facebook's crawler specifically, which
+  // isn't something controllable from here. A real, always-working
+  // photo that isn't perfectly square beats an unreliable square one.
+  const squares = images;
   const imageTags = squares
-    .map(
-      (img) =>
-        `<meta property="og:image" content="${escapeHtml(img)}" />
-    <meta property="og:image:width" content="600" />
-    <meta property="og:image:height" content="600" />`
-    )
+    .map((img) => `<meta property="og:image" content="${escapeHtml(img)}" />`)
     .join("\n    ");
   return `<!DOCTYPE html>
 <html>
