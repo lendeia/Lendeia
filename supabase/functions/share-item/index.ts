@@ -108,7 +108,12 @@ Deno.serve(async (req) => {
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   if (storeId) {
-    const appUrl = appOrigin ? `${appOrigin}/?store=${storeId}` : `/?store=${storeId}`;
+    // "/l", not "/" - Vercel always serves the static index.html
+  // directly for the exact root path and never even runs
+  // vercel.json's rewrites for it, so og:url (which crawlers treat as
+  // canonical and re-fetch) must point somewhere the rewrite actually
+  // reaches, or a re-scrape loops right back to the plain homepage.
+  const appUrl = appOrigin ? `${appOrigin}/l?store=${storeId}` : `/l?store=${storeId}`;
     if (!isCrawler && appOrigin) return Response.redirect(appUrl, 302);
 
     const { data: user } = await supabase
@@ -132,7 +137,8 @@ Deno.serve(async (req) => {
     return new Response("Missing item id or store id", { status: 400 });
   }
 
-  const appUrl = appOrigin ? `${appOrigin}/?item=${itemId}` : `/?item=${itemId}`;
+  // Same "/l" reasoning as the store branch above.
+  const appUrl = appOrigin ? `${appOrigin}/l?item=${itemId}` : `/l?item=${itemId}`;
   if (!isCrawler && appOrigin) return Response.redirect(appUrl, 302);
 
   const { data: listing } = await supabase
