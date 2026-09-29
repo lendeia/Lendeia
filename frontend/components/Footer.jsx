@@ -14,7 +14,7 @@
 //   goToHelp from App.jsx.
 // ==================================================================
 import React from "react";
-import { Mail, MessageCircle, AlertCircle, Search } from "lucide-react";
+import { Mail, MessageCircle, AlertCircle, Search, Facebook } from "lucide-react";
 
 const LEGAL_LINKS = [
   ["terms", "Terms & Conditions"],
@@ -49,6 +49,17 @@ export default function Footer({ goToLegal, goToHelp }) {
           <button onClick={() => goToHelp?.()} className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-1 transition-all text-left">
             <Search size={16} className="text-[#E2932E]" /> Help / FAQ
           </button>
+          {/* Real business Facebook page — opens in a new tab, same as
+              any other external link, so people don't lose their place
+              on the site. */}
+          <a
+            href="https://www.facebook.com/share/1EjR5TH8pP/?mibextid=wwXIfr"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-1 transition-all"
+          >
+            <Facebook size={16} className="text-[#E2932E]" /> Lendeia on Facebook
+          </a>
         </div>
 
         <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-8 pt-6 border-t border-white/10 text-[12.5px] text-white/60">
