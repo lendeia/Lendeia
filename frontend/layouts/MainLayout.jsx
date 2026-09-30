@@ -80,7 +80,7 @@ function LocationBanner() {
 }
 
 
-export default function MainLayout({ page, setPage, children, goToLegal, goToHelp }) {
+export default function MainLayout({ page, setPage, children, goToLegal, goToHelp, viewNotification }) {
   return (
     <div style={{ fontFamily: "Inter, sans-serif" }} className="modern-bg min-h-screen text-[#17231D]">
       <link href={FONT_LINK} rel="stylesheet" />
@@ -166,7 +166,7 @@ export default function MainLayout({ page, setPage, children, goToLegal, goToHel
         }
       `}</style>
 
-      <Navbar page={page} setPage={setPage} />
+      <Navbar page={page} setPage={setPage} viewNotification={viewNotification} />
 
       {/* min-h forces this to fill at least the full screen below the
           nav — previously a short/empty page (like Browse with no

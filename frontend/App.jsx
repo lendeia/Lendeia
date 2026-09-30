@@ -22,6 +22,7 @@ import ListEquipment from "./pages/ListEquipment/ListEquipment";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Profile from "./pages/Profile/Profile";
 import Admin from "./pages/Admin/Admin";
+import NotificationDetail from "./pages/NotificationDetail/NotificationDetail";
 import OwnerStore from "./pages/Store/OwnerStore";
 import Messages from "./pages/Messages/Messages";
 import Receipt from "./pages/Receipt/Receipt";
@@ -225,6 +226,11 @@ function AppShell() {
   // itself does no role check at all; Profile.jsx only ever shows the
   // button that calls it to an account whose role is admin/owner.
   const goToAdmin = () => setPage("admin");
+  const [notificationDetail, setNotificationDetail] = useState(null);
+  const viewNotification = (n) => {
+    setNotificationDetail(n);
+    setPage("notification-detail");
+  };
 
   if (resolvingDeepLink) {
     return (
@@ -236,7 +242,7 @@ function AppShell() {
 
   return (
     <>
-    <MainLayout page={page} setPage={nav} goToLegal={goToLegal} goToHelp={goToHelp}>
+    <MainLayout page={page} setPage={nav} goToLegal={goToLegal} goToHelp={goToHelp} viewNotification={viewNotification}>
       {page === "home" && <Home setPage={nav} openItem={openItem} goToBrowse={goToBrowse} />}
       {page === "browse" && <Browse openItem={openItem} initialSearch={browseSearchQuery} initialCategory={browseCategory} />}
       {page === "details" && (
@@ -256,6 +262,9 @@ function AppShell() {
       {page === "dashboard" && <Dashboard openItem={openItem} visitProfile={visitStore} viewReceipt={viewReceipt} />}
       {page === "profile" && <Profile goToLegal={goToLegal} goToHelp={goToHelp} goToAdmin={goToAdmin} />}
       {page === "admin" && <Admin back={() => setPage("profile")} visitStore={visitStore} />}
+      {page === "notification-detail" && (
+        <NotificationDetail notification={notificationDetail} back={() => setPage("home")} />
+      )}
       {page === "store" && (
         <OwnerStore
           ownerId={storeOwnerId}

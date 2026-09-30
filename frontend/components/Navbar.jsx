@@ -61,7 +61,7 @@ const BOTTOM_NAV_ITEMS = [
 ];
 
 // ---- SECTION: sub-component — notification bell + dropdown panel ----
-function NotificationsBell({ setPage }) {
+function NotificationsBell({ setPage, viewNotification }) {
   const { account } = useAuth();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
@@ -96,6 +96,16 @@ function NotificationsBell({ setPage }) {
       markNotificationRead(n.id).catch(() => {});
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       setUnread((u) => Math.max(0, u - 1));
+    }
+    // account_action (a moderation notice — warn/restrict/suspend/ban)
+    // gets its own full detail screen instead of the usual "go to the
+    // roughly-right page" contextual navigation below, since its whole
+    // content (why it happened, from whom, what it means) needs real
+    // room to read properly, not just a two-line preview in this panel.
+    if (n.type === "account_action" && viewNotification) {
+      viewNotification(n);
+      setOpen(false);
+      return;
     }
     // Basic contextual navigation — not deep-linking to the exact
     // rental/conversation/review, just the right general page.
@@ -147,9 +157,11 @@ function NotificationsBell({ setPage }) {
       {open && (
         <>
           <div className="fixed inset-0 z-[2999]" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-9 w-80 max-h-[26rem] overflow-y-auto bg-white rounded-2xl shadow-xl border border-[#17231D]/8 z-[3000]">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#17231D]/8">
-              <p className="text-[13.5px] font-medium text-[#17231D]">Notifications</p>
+          {/* Bigger on desktop only (md:), per explicit request — mobile
+              stays exactly the same width/height it already was. */}
+          <div className="absolute right-0 top-9 w-80 md:w-[26rem] max-h-[26rem] md:max-h-[32rem] overflow-y-auto bg-white rounded-2xl shadow-xl border border-[#17231D]/8 z-[3000]">
+            <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 border-b border-[#17231D]/8">
+              <p className="text-[13.5px] md:text-[15px] font-medium text-[#17231D]">Notifications</p>
               <div className="flex items-center gap-3">
                 {unread > 0 && (
                   <button onClick={handleMarkAllRead} className="text-[12px] text-[#4B5D46] font-medium">
@@ -164,31 +176,45 @@ function NotificationsBell({ setPage }) {
               </div>
             </div>
             {loading ? (
-              <p className="px-4 py-6 text-[13px] text-[#6b6f66]">Loading…</p>
+              <p className="px-4 md:px-5 py-6 text-[13px] text-[#6b6f66]">Loading…</p>
             ) : items.length === 0 ? (
-              <p className="px-4 py-6 text-[13px] text-[#6b6f66]">No notifications yet.</p>
+              <div className="px-4 md:px-5 py-10 text-center">
+                <Bell size={22} className="mx-auto text-[#17231D]/15 mb-2" />
+                <p className="text-[13px] text-[#8A9089]">No notifications yet.</p>
+              </div>
             ) : (
               items.map((n) => (
                 <div
                   key={n.id}
                   onClick={() => handleItemClick(n)}
-                  className={`group relative w-full text-left px-4 py-3 pr-9 border-b border-[#17231D]/6 hover:bg-[#17231D]/[0.02] transition-colors cursor-pointer ${
+                  className={`group relative w-full text-left px-4 md:px-5 py-3.5 md:py-4 pr-9 border-b border-[#17231D]/6 hover:bg-[#17231D]/[0.03] transition-colors cursor-pointer ${
                     n.read ? "" : "bg-[#E2932E]/5"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-[#E2932E] shrink-0" />}
-                    <p className="text-[13px] font-medium text-[#17231D]">{n.title}</p>
+                  <div className="flex items-start gap-2.5">
+                    {/* A small type-based accent dot instead of a bare
+                        unread marker only — gives every row a little
+                        visual anchor instead of just stacked text,
+                        which is what made this feel flat/lifeless
+                        before. */}
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${
+                        n.type === "account_action" ? "bg-[#a15c1f]" : n.read ? "bg-[#17231D]/10" : "bg-[#E2932E]"
+                      }`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] md:text-[14px] font-medium text-[#17231D]">{n.title}</p>
+                      {n.body && <p className="text-[12px] md:text-[13px] text-[#6b6f66] mt-1 leading-relaxed line-clamp-2">{n.body}</p>}
+                      <p className="text-[10.5px] md:text-[11px] text-[#8A9089] mt-1.5">
+                        {new Date(n.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                      </p>
+                    </div>
                   </div>
-                  {n.body && <p className="text-[12px] text-[#6b6f66] mt-0.5 line-clamp-2">{n.body}</p>}
-                  <p className="text-[10.5px] text-[#8A9089] mt-1">
-                    {new Date(n.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                  </p>
                   {/* Clear this one — a real delete (database/schema/
                       allow_clear_notifications.sql), not just visual. */}
                   <button
                     onClick={(e) => handleClearOne(e, n)}
-                    className="absolute top-3 right-3 text-[#8A9089] hover:text-[#17231D] opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-3.5 right-3.5 text-[#8A9089] hover:text-[#17231D] opacity-0 group-hover:opacity-100 transition-opacity"
                     aria-label="Clear notification"
                   >
                     <X size={14} />
@@ -204,7 +230,7 @@ function NotificationsBell({ setPage }) {
 }
 
 // ---- SECTION: sub-component — desktop top navigation bar ----
-export function TopNav({ page, setPage }) {
+export function TopNav({ page, setPage, viewNotification }) {
   const { account } = useAuth();
   const [planId, setPlanId] = useState("free");
   const [showSubscribe, setShowSubscribe] = useState(false);
@@ -313,7 +339,7 @@ export function TopNav({ page, setPage }) {
         {/* Notifications now sits directly next to the avatar, per
             explicit request — previously separated from it by the
             subscription badge in between. */}
-        <NotificationsBell setPage={setPage} />
+        <NotificationsBell setPage={setPage} viewNotification={viewNotification} />
 
         {account ? (
           <button
@@ -399,10 +425,10 @@ export function BottomNav({ page, setPage }) {
 }
 
 // ---- SECTION: MAIN export — renders both TopNav and BottomNav together ----
-export default function Navbar({ page, setPage }) {
+export default function Navbar({ page, setPage, viewNotification }) {
   return (
     <>
-      <TopNav page={page} setPage={setPage} />
+      <TopNav page={page} setPage={setPage} viewNotification={viewNotification} />
       <BottomNav page={page} setPage={setPage} />
     </>
   );

@@ -277,3 +277,58 @@ export async function getUserModerationInfo(userId) {
     })),
   };
 }
+
+/**
+ * Search users by name (case-insensitive, partial match) — for the
+ * admin's "search all users" tool. Same-name accounts are genuinely
+ * ambiguous by name alone, which is exactly why each result also
+ * carries its real id — the UI shows it whenever more than one result
+ * shares a name, so the admin can tell them apart with certainty
+ * rather than guessing from name alone.
+ * @param {string} query
+ */
+export async function searchUsers(query) {
+  const supabase = getSupabaseClient();
+  const trimmed = query?.trim();
+  if (!trimmed) return [];
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, name, email, account_status")
+    .ilike("name", `%${trimmed}%`)
+    .order("name")
+    .limit(30);
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Removes a listing as a moderation action (not the owner deleting
+ * their own) — relies on database/schema/admin_remove_listing.sql's
+ * listings_admin_delete RLS policy for the actual permission; logs it
+ * in the same admin_actions audit trail as every other action, with a
+ * NAME SNAPSHOT since the listing row itself won't exist anymore once
+ * this returns (a live foreign key would have nothing left to point
+ * at). target_user_id is the listing's OWNER (who this action is
+ * really "about"), not the admin doing the removing.
+ * @param {{ listingId: string, listingName: string, ownerId: string, reason: string, relatedReportId?: string }} params
+ */
+export async function adminRemoveListing({ listingId, listingName, ownerId, reason, relatedReportId }) {
+  const supabase = getSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+  if (!reason?.trim()) throw new Error("A reason is required to remove a listing.");
+  if (!ownerId) throw new Error("Missing the listing owner's id.");
+
+  const { error: deleteError } = await supabase.from("listings").delete().eq("id", listingId);
+  if (deleteError) throw deleteError;
+
+  const { error: logError } = await supabase.from("admin_actions").insert({
+    admin_id: user.id,
+    target_user_id: ownerId,
+    action: "remove_listing",
+    reason,
+    removed_listing_name: listingName || null,
+    related_report_id: relatedReportId || null,
+  });
+  if (logError) throw logError;
+}
