@@ -11,6 +11,7 @@ import { MapPin, Check, ChevronRight, LocateFixed, Search } from "lucide-react";
 import Button from "../../components/Button";
 import ListingCard from "../../components/ListingCard";
 import SubscriptionModal from "../../components/SubscriptionModal";
+import { SUBSCRIPTIONS_ENABLED } from "../../components/PlanCard";
 import { CATEGORIES } from "../../../shared/constants";
 import { useSavedListings } from "../../../state/saved/savedStore";
 import cameraPhoto from "../../assets/items/camera.jpg";
@@ -323,7 +324,7 @@ export default function Home({ setPage, openItem, goToBrowse }) {
             frontend/pages/ListEquipment/ListEquipment.jsx), so it needs a
             visible entry point on Home too, same modal as the top nav
             badge / Profile page use. */}
-        {account && !account.isAnonymous && (
+        {SUBSCRIPTIONS_ENABLED && account && !account.isAnonymous && (
           <div className="max-w-lg mx-auto mt-10 flex items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-[#E2932E]/30">
             <div>
               <p className="text-[14px] font-medium text-[#17231D]">List more, get seen more</p>

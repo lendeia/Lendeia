@@ -1,20 +1,27 @@
 // ==================================================================
-// FILE TYPE : SUPABASE EDGE FUNCTION (new)
+// FILE TYPE : SUPABASE EDGE FUNCTION
 // PURPOSE   :
-//   Real account deletion. The Supabase client SDK has no way for a
-//   user to delete their own auth account — that requires the Admin
-//   API (supabase.auth.admin.deleteUser), which needs the service role
-//   key, which must never be shipped to the browser. This function is
-//   the only place that key is used for this feature.
-//   public.users.id has NO foreign key to auth.users (by design, as in
-//   many Supabase projects) — so deleting the auth user alone would
-//   NOT cascade to delete their public.users row or anything built on
-//   it. Order matters here: delete public.users FIRST (which DOES
-//   cascade — every table referencing it was built with `on delete
-//   cascade`: listings, rentals, reviews, messages, saved_listings,
-//   notifications, payments, support_requests, device_accounts, etc.),
-//   THEN delete the auth.users entry so they can no longer sign in at
-//   all.
+//   Real account deletion, with a genuine 30-day grace period -
+//   previously this destroyed everything immediately and permanently
+//   in one click, no recovery at all. Now it only SCHEDULES the
+//   deletion (sets account_status='pending_deletion' and
+//   scheduled_deletion_at 30 days out) and returns - nothing is
+//   actually destroyed here anymore. The real, permanent, irreversible
+//   deletion now happens in the database itself, once the 30 days
+//   genuinely pass (database/schema/scheduled_account_deletion.sql's
+//   finalize_scheduled_deletions(), run daily by pg_cron).
+//   This still needs the service role specifically because a normal
+//   user updating their own account_status through the ordinary RLS
+//   path is deliberately blocked (see trust_safety_account_status.sql
+//   and admin_permissions_foundation.sql's block_self_role_escalation
+//   trigger) - that block exists to stop self-un-banning, and
+//   correctly has no special case for "unless it's this one specific
+//   field for this one specific reason", so this still has to go
+//   through the same trusted, service-role path as before.
+//   If they sign back in before the 30 days are up,
+//   backend/supabase/anonymousAuth.js's ensureAnonymousSession()
+//   automatically reactivates the account - logging back in IS the
+//   cancel button, nothing else needed.
 // CONNECTS TO :
 //   Called by backend/supabase/account.js's deleteMyAccount(), used by
 //   Profile.jsx's Delete Account flow.
@@ -52,31 +59,20 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Deletes the public.users row, cascading to every table built with
-    // `references users(id) on delete cascade` — listings, rentals,
-    // reviews, messages, saved listings, notifications, payments,
-    // support requests, device bindings, etc.
-    const { error: dbError } = await supabaseAdmin.from("users").delete().eq("id", userId);
+    const scheduledDeletionAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { error: dbError } = await supabaseAdmin
+      .from("users")
+      .update({ account_status: "pending_deletion", scheduled_deletion_at: scheduledDeletionAt })
+      .eq("id", userId);
     if (dbError) {
-      console.error("Failed to delete public.users row:", dbError);
-      return new Response(JSON.stringify({ error: "Couldn't delete your account data. Please try again." }), {
+      console.error("Failed to schedule deletion:", dbError);
+      return new Response(JSON.stringify({ error: "Couldn't schedule your account for deletion. Please try again." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Now the actual auth identity — after this, they can no longer
-    // sign back in at all.
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (authError) {
-      console.error("Failed to delete auth user (data was already deleted):", authError);
-      return new Response(JSON.stringify({ error: "Your data was deleted, but there was an issue removing your login. Please contact support." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ deleted: true }), {
+    return new Response(JSON.stringify({ scheduled: true, scheduledDeletionAt }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

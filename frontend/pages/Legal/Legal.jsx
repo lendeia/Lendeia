@@ -165,7 +165,7 @@ export default function Legal({ back, initialSection }) {
             <li>Owners must have the legal right to rent out any item they list.</li>
             <li>Renters must use rented items responsibly and as intended.</li>
             <li>All users must follow applicable Philippine law.</li>
-            <li>Users may not attempt to circumvent platform rules (e.g. arranging off-platform payment to avoid dispute protections).</li>
+            <li>Users may not attempt to circumvent platform safety rules, such as misrepresenting their identity or avoiding verification.</li>
           </ul>
           <h3>D. Listings</h3>
           <p>Owners must accurately describe an item, upload real and representative photos, state its true condition, set accurate availability, set a fair rental price, and disclose known defects. Owners must remove or delist items that are no longer available.</p>
@@ -178,45 +178,39 @@ export default function Legal({ back, initialSection }) {
             otherwise agreed. See our Rental Terms, Cancellation & Refund Policy, and Damage/Loss/Late Return
             Policy for the details of early returns, late returns, and damage.
           </p>
-          <h3>F. Payments</h3>
-          <p>
-            Renters are responsible for paying the rental amount displayed for the transaction. Lendeia does
-            not currently charge a platform or transaction fee. Any additional fee would only apply if
-            clearly disclosed to you before you confirm a transaction.
-          </p>
-          <h3>G. Cancellations</h3>
+          <h3>F. Cancellations</h3>
           <p>See our separate Cancellation & Refund Policy below.</p>
-          <h3>H. Damage/loss</h3>
+          <h3>G. Damage/loss</h3>
           <p>See our separate Damage, Loss & Late Return Policy below.</p>
-          <h3>I. Reviews</h3>
+          <h3>H. Reviews</h3>
           <ul>
             <li>Reviews must reflect genuine experiences.</li>
             <li>Fake reviews, review manipulation, and paying for positive reviews are prohibited.</li>
             <li>Using reviews to harass another user is prohibited.</li>
             <li>We may remove reviews that violate these rules.</li>
           </ul>
-          <h3>J. Messages and communications</h3>
+          <h3>I. Messages and communications</h3>
           <ul>
             <li>Don't use messaging to scam other users.</li>
             <li>Don't harass, threaten, or impersonate other users.</li>
             <li>Don't send prohibited or illegal content, including via photo attachments.</li>
             <li>We may investigate reported messages where legally permitted, and you can block another user at any time.</li>
           </ul>
-          <h3>K. Account suspension</h3>
+          <h3>J. Account suspension</h3>
           <p>We may suspend or terminate accounts for fraud, repeated cancellations, fake listings, non-payment, failure to return items, damage disputes, harassment, listing prohibited items, or serious violations of these terms.</p>
-          <h3>L. Liability</h3>
+          <h3>K. Liability</h3>
           <p>
             Lendeia facilitates connections between Owners and Renters. We do not guarantee the condition,
             safety, ownership, or behavior of any listed item or any user. To the fullest extent permitted
             by law, Lendeia's liability for any claim relating to the platform is limited.
           </p>
-          <h3>M. Disputes</h3>
+          <h3>L. Disputes</h3>
           <p>See our separate Dispute Resolution Policy below.</p>
-          <h3>N. Intellectual property</h3>
+          <h3>M. Intellectual property</h3>
           <p>The Lendeia name, logo, branding, software, and original site content are protected and may not be used without permission.</p>
-          <h3>O. Changes</h3>
+          <h3>N. Changes</h3>
           <p>We may update the service and these policies from time to time. Material changes will be reflected by an updated "last updated" date on this page.</p>
-          <h3>P. Governing law</h3>
+          <h3>O. Governing law</h3>
           <p>These terms are governed by the laws of the Republic of the Philippines.</p>
         </Section>
       </div>
@@ -236,8 +230,6 @@ export default function Legal({ back, initialSection }) {
           <p>Account creation and authentication, providing the marketplace and messaging features, rental transactions, customer support, fraud and safety review, improving the platform, and legal compliance.</p>
           <h3>Google login</h3>
           <p>If you sign in with Google, Google provides us the account information associated with the permissions you grant during that sign-in.</p>
-          <h3>Payments</h3>
-          <p>We do not store your payment card details. Payment processing, when applicable, is handled by a payment provider.</p>
           <h3>Data sharing</h3>
           <p>We may share information with service providers who help us run the platform (e.g. our hosting/database provider), other users where necessary to complete a rental (e.g. sharing your name with someone you're renting to/from), and government or law enforcement where legally required.</p>
           <h3>Retention</h3>
@@ -297,8 +289,6 @@ export default function Legal({ back, initialSection }) {
           </p>
           <h3>Owner cancels</h3>
           <p>If an Owner cancels an already-accepted rental (e.g. the item becomes unavailable), the Renter owes nothing for that cancelled rental.</p>
-          <h3>Refund processing</h3>
-          <p>Where an online payment has actually been collected, refund timing may depend on your payment provider or bank in addition to Lendeia's own processing. Lendeia does not currently guarantee instant refunds.</p>
         </Section>
       </div>
 
@@ -331,7 +321,7 @@ export default function Legal({ back, initialSection }) {
             a listing's visibility for free.
           </p>
           <h3>Payouts</h3>
-          <p>Lendeia does not currently process online payments or payouts on an Owner's behalf. Owners are responsible for arranging payment directly with Renters unless and until Lendeia introduces in-platform payment processing.</p>
+          <p>Owners are responsible for arranging payment directly with Renters.</p>
           <h3>Taxes</h3>
           <p>Owners are responsible for any tax obligations arising from their rental income under applicable Philippine law.</p>
         </Section>

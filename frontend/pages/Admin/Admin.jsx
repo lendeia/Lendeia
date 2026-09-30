@@ -356,7 +356,7 @@ export default function Admin({ back, visitStore }) {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name..."
+              placeholder="Search by name or username..."
               className="flex-1 rounded-full border border-[#17231D]/15 px-4 py-2 text-[13.5px] outline-none focus:border-[#17231D]/30"
             />
             <button type="submit" disabled={searching} className="px-5 py-2 rounded-full bg-[#17231D] text-white text-[13.5px] font-medium disabled:opacity-60">
@@ -371,6 +371,7 @@ export default function Admin({ back, visitStore }) {
                   <div>
                     <p className="text-[13.5px] font-medium text-[#17231D]">{u.name}</p>
                     <p className="text-[12px] text-[#8A9089] mt-0.5">{u.email}</p>
+                    {u.username && <p className="text-[12px] text-[#8A9089]">@{u.username}</p>}
                     {/* Shown ONLY when the name is ambiguous (more than
                         one result shares it) — otherwise this would just
                         be visual noise on every single row. */}

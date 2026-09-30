@@ -185,7 +185,7 @@ export default function MainLayout({ page, setPage, children, goToLegal, goToHel
           taken out of normal flow, which would otherwise place the
           footer visually behind/overlapping the fixed chat panel. A
           footer doesn't belong on a full-screen chat view anyway. */}
-      {page !== "messages" && <Footer goToLegal={goToLegal} goToHelp={goToHelp} />}
+      {page !== "messages" && page !== "map" && <Footer goToLegal={goToLegal} goToHelp={goToHelp} />}
     </div>
   );
 }

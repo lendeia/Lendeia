@@ -66,7 +66,7 @@ const GUIDES = [
     title: "Messaging & staying safe",
     steps: [
       "Message an owner directly from any item page — you can send photos, not just text.",
-      "Keep payments and agreements within the app; never send money outside the platform.",
+      "Check the other person's profile, reviews, and rental history before agreeing to anything — it's the best way to verify who you're actually dealing with.",
       "You can report a specific message or block someone entirely, right from the conversation.",
       "Phone numbers are only ever shared if both you and the other person choose to, after a rental is accepted.",
     ],

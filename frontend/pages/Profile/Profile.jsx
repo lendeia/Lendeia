@@ -14,6 +14,7 @@ import React, { useState, useEffect } from "react";
 import { ChevronRight, X, Camera, ShieldCheck, ShieldOff } from "lucide-react";
 import { useAuth } from "../../../state/auth/authStore";
 import SubscriptionModal from "../../components/SubscriptionModal";
+import { SUBSCRIPTIONS_ENABLED } from "../../components/PlanCard";
 import { getPlanById } from "../../components/PlanCard";
 import { getMySubscription } from "../../../backend/supabase/subscription";
 import { getMyRole } from "../../../backend/supabase/admin";
@@ -233,12 +234,13 @@ function TrustProfileCard({ account, details, locationGranted, requestLocation, 
   );
 }
 
-// Real, permanent account deletion — requires typing DELETE to confirm,
-// since a plain confirm() dialog isn't enough friction for something
-// this irreversible. Calls backend/supabase/account.js's
-// deleteMyAccount(), which actually removes the account and everything
-// tied to it (listings, rentals, messages, etc.) via the delete-account
-// edge function — not just a local sign-out.
+// Real account deletion, with a genuine 30-day grace period — requires
+// typing DELETE to confirm, since a plain confirm() dialog isn't
+// enough friction for something this significant. Calls
+// backend/supabase/account.js's deleteMyAccount(), which schedules
+// (not immediately performs) the real deletion via the delete-account
+// edge function. Signing back in within the 30 days automatically
+// cancels it — see database/schema/scheduled_account_deletion.sql.
 function DeleteAccountModal({ onClose, onConfirm, deleting, error }) {
   const [confirmText, setConfirmText] = useState("");
   const canConfirm = confirmText.trim().toUpperCase() === "DELETE";
@@ -247,9 +249,19 @@ function DeleteAccountModal({ onClose, onConfirm, deleting, error }) {
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl w-full max-w-sm p-6">
         <h3 className="font-serif text-[19px] text-[#17231D]">Delete your account?</h3>
+        {/* The actual "aware of what's happening" text, made explicit
+            per request — previously this only described the permanent
+            end state, with nothing about the 30-day window or that
+            signing back in cancels it. */}
         <p className="text-[13.5px] text-[#6b6f66] mt-2 leading-relaxed">
-          This permanently deletes your account, listings, rental history, messages, and saved
-          items. This can't be undone.
+          Your account will be deactivated right away — your listings, profile, and activity will stop
+          showing to others immediately.
+        </p>
+        <p className="text-[13.5px] text-[#6b6f66] mt-2 leading-relaxed">
+          Everything (listings, rental history, messages, saved items) is then{" "}
+          <span className="font-medium text-[#17231D]">permanently deleted after 30 days</span>.
+          If you sign back in before then, your account is automatically restored, exactly as it was —
+          nothing needs to be undone separately.
         </p>
         <label className="block mt-4">
           <span className="text-[12.5px] text-[#6b6f66]">Type DELETE to confirm</span>
@@ -272,7 +284,7 @@ function DeleteAccountModal({ onClose, onConfirm, deleting, error }) {
             onClick={onConfirm}
             className="flex-1 px-4 py-2.5 rounded-full bg-red-600 text-white text-[13.5px] font-medium disabled:opacity-50"
           >
-            {deleting ? "Deleting…" : "Delete forever"}
+            {deleting ? "Scheduling…" : "Delete account"}
           </button>
         </div>
       </div>
@@ -636,12 +648,15 @@ export default function Profile({ goToLegal, goToHelp, goToAdmin }) {
     setDeleteError(null);
     try {
       await deleteMyAccount();
-      // The account and everything in it are gone server-side at this
-      // point — reload to a completely fresh state rather than trying
-      // to patch React state for an identity that no longer exists.
+      // The account is now scheduled for deletion (not gone yet — see
+      // database/schema/scheduled_account_deletion.sql) and the
+      // browser's session has already been signed out inside
+      // deleteMyAccount() itself. Reload to a fresh, signed-out state
+      // rather than trying to patch React state for a session that no
+      // longer exists.
       window.location.href = window.location.origin;
     } catch (err) {
-      setDeleteError(err.message || "Couldn't delete your account. Please try again.");
+      setDeleteError(err.message || "Couldn't schedule your account for deletion. Please try again.");
       setDeletingAccount(false);
     }
   };
@@ -837,7 +852,7 @@ export default function Profile({ goToLegal, goToHelp, goToAdmin }) {
                 <ShieldCheck size={11} /> Verified
               </span>
             )}
-            {!account.isAnonymous && subscriptionPlanId !== "free" && (
+            {SUBSCRIPTIONS_ENABLED && !account.isAnonymous && subscriptionPlanId !== "free" && (
               <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#E2932E]/15 text-[#8a5a13] text-[11px] font-semibold border border-[#E2932E]/40">
                 {getPlanById(subscriptionPlanId).emoji} {getPlanById(subscriptionPlanId).name}
               </span>
@@ -921,7 +936,7 @@ export default function Profile({ goToLegal, goToHelp, goToAdmin }) {
         </div>
       )}
 
-      {!account.isAnonymous && (
+      {SUBSCRIPTIONS_ENABLED && !account.isAnonymous && (
         <>
           <h3 className="font-medium text-[15px] text-[#17231D] mt-8 mb-3 anim-fade-up" style={{ animationDelay: "0.28s" }}>
             Subscription

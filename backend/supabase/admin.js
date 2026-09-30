@@ -279,12 +279,16 @@ export async function getUserModerationInfo(userId) {
 }
 
 /**
- * Search users by name (case-insensitive, partial match) — for the
- * admin's "search all users" tool. Same-name accounts are genuinely
- * ambiguous by name alone, which is exactly why each result also
- * carries its real id — the UI shows it whenever more than one result
- * shares a name, so the admin can tell them apart with certainty
- * rather than guessing from name alone.
+ * Search users by name OR username (case-insensitive, partial match on
+ * either) — for the admin's "search all users" tool, extended to also
+ * match a shop's actual handle, not just the display name shown on it
+ * (there's no separate "shop name" field in this app — a shop is
+ * always "{owner's name}'s Store" — so username, a real distinct
+ * searchable field, is the closest genuine equivalent). Same-name
+ * accounts are genuinely ambiguous by name alone, which is exactly why
+ * each result also carries its real id — the UI shows it whenever more
+ * than one result shares a name, so the admin can tell them apart with
+ * certainty rather than guessing from name alone.
  * @param {string} query
  */
 export async function searchUsers(query) {
@@ -293,8 +297,8 @@ export async function searchUsers(query) {
   if (!trimmed) return [];
   const { data, error } = await supabase
     .from("users")
-    .select("id, name, email, account_status")
-    .ilike("name", `%${trimmed}%`)
+    .select("id, name, email, username, account_status")
+    .or(`name.ilike.%${trimmed}%,username.ilike.%${trimmed}%`)
     .order("name")
     .limit(30);
   if (error) throw error;

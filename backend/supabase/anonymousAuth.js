@@ -202,6 +202,10 @@ export async function ensureAnonymousSession() {
   // database/schema/trust_safety_account_status.sql's
   // expire_suspension_if_due().
   await supabase.rpc("expire_suspension_if_due", { target: authUser.id });
+  // Logging back in within the 30-day window IS the "cancel deletion"
+  // action — no separate button to find. See database/schema/
+  // scheduled_account_deletion.sql's reactivate_if_pending_deletion().
+  await supabase.rpc("reactivate_if_pending_deletion", { target: authUser.id });
 
   // Fetch the authoritative row back out, right after ensuring it
   // exists/is synced — this is what toAppUser() above actually needs to
@@ -237,6 +241,18 @@ export async function ensureAnonymousSession() {
         : `Your account is suspended until ${until}.`
     );
     err.code = "ACCOUNT_SUSPENDED";
+    throw err;
+  }
+  // Rare edge case: the 30-day window has genuinely passed but the
+  // once-daily cleanup (database/schema/scheduled_account_deletion.sql's
+  // pg_cron job) hasn't actually run yet. reactivate_if_pending_deletion()
+  // above only reactivates while still inside the window, so this
+  // account is still legitimately pending its real, permanent deletion
+  // and shouldn't be let back in for however many hours remain.
+  if (userRow?.account_status === "pending_deletion") {
+    await supabase.auth.signOut();
+    const err = new Error("This account is scheduled for deletion and can no longer be signed into.");
+    err.code = "ACCOUNT_PENDING_DELETION";
     throw err;
   }
 

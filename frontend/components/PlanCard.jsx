@@ -18,6 +18,15 @@
 import React from "react";
 import { Check } from "lucide-react";
 
+// Temporary master switch — turns every subscription button/badge/title
+// off across the whole app at once, per explicit request ("I'll enable
+// it later"). Nothing about the underlying subscription system itself
+// is removed — plans, limits, and the checkout flow all still exist
+// and still work exactly as before; this only controls whether the UI
+// that LEADS to them is shown. Flip back to true to bring it all back,
+// nothing else needs to change.
+export const SUBSCRIPTIONS_ENABLED = false;
+
 export const PLANS = [
   {
     id: "free",

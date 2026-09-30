@@ -458,14 +458,14 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
               <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3">
                 {/* Real safety reminder, tied to actual policy — see
                     frontend/pages/Legal/Legal.jsx's "Messages and
-                    communications" section (Terms & Conditions J).
+                    communications" section (Terms & Conditions I).
                     Dismissible so it doesn't nag on every message. */}
                 {showSafetyTip && (
                   <div className="flex items-start gap-2 bg-[#E2932E]/10 rounded-xl px-3.5 py-2.5 text-[11.5px] text-[#8a5a13] leading-relaxed">
                     <span className="shrink-0">ℹ️</span>
                     <span className="flex-1">
-                      Keep payments and agreements within what you discuss here — never send money outside
-                      the platform or share sensitive personal/financial info. Report anything that looks
+                      Only rent with people you can verify — check their profile, reviews, and past
+                      rentals before agreeing to anything. Report anything that looks
                       like a scam.{" "}
                       {goToHelp && (
                         <button onClick={() => goToHelp("messaging")} className="underline font-medium">

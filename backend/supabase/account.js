@@ -1,21 +1,29 @@
 // ==================================================================
-// FILE TYPE : SUPABASE BACKEND — ACCOUNT DELETION (real, new)
+// FILE TYPE : SUPABASE BACKEND — ACCOUNT DELETION (real 30-day grace period)
 // PURPOSE   :
-//   Calls the delete-account edge function — the only place a real
-//   account can actually be deleted, since that requires the service
-//   role key (never usable from the browser). See that function's file
-//   header for the deletion order (public.users first, then the actual
-//   auth account) and what's preserved (reviews the person left about
-//   others).
+//   Calls the delete-account edge function, which now only SCHEDULES
+//   deletion 30 days out (account_status='pending_deletion') rather
+//   than destroying everything immediately — see that function's file
+//   header for the full explanation, and database/schema/
+//   scheduled_account_deletion.sql for what actually happens once the
+//   30 days pass. Since the account technically still exists during
+//   that window, this signs the browser's own session out right after
+//   scheduling succeeds — the edge function itself can't do that part,
+//   since it can only act on the server side, not the calling
+//   browser's own client-side session.
 // CONNECTS TO :
 //   Used by frontend/pages/Profile/Profile.jsx's "Delete Account" flow.
 // ==================================================================
 import { getSupabaseClient, EDGE_FUNCTION_NAMES } from "./client";
 
+/**
+ * @returns {Promise<{ scheduledDeletionAt: string }>}
+ */
 export async function deleteMyAccount() {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.functions.invoke(EDGE_FUNCTION_NAMES.deleteAccount);
-  if (error) throw new Error(error.message || "Couldn't delete your account. Please try again.");
+  if (error) throw new Error(error.message || "Couldn't schedule your account for deletion. Please try again.");
   if (data?.error) throw new Error(data.error);
-  return true;
+  await supabase.auth.signOut();
+  return { scheduledDeletionAt: data?.scheduledDeletionAt };
 }

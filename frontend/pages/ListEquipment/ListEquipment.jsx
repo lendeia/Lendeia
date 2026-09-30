@@ -369,14 +369,16 @@ export default function ListEquipment({ goToLogin, goToLegal, goToHelp }) {
       <h1 className="font-serif text-[26px] md:text-[30px] text-[#17231D]">List your equipment</h1>
       <div className="h-1 rounded-full bg-[#E2932E] mt-4" />
 
-      {/* Subscription is now an account-level thing (see
-          frontend/components/SubscriptionModal.jsx, reachable from the
-          top nav badge or Profile) — this just informs, it doesn't let
-          you choose a plan here anymore. */}
+      {/* Limits only, no plan name/branding shown — subscriptions are
+          hidden across the app for now (SUBSCRIPTIONS_ENABLED in
+          PlanCard.jsx), but the actual numeric limits still apply and
+          are still worth telling someone before they start uploading
+          photos, regardless of whether the concept of "plans" is
+          currently visible anywhere else. */}
       <div className="mt-4 flex items-center justify-between p-3.5 rounded-xl bg-[#EFEBDD] text-[13px]">
         <span className="text-[#17231D]">
-          Publishing as: <span className="font-medium">{selectedPlan.emoji} {selectedPlan.name} plan</span>
-          {" "}({selectedPlan.maxPhotos} photos max, {selectedPlan.maxActiveListings} active listings max)
+          You can add up to <span className="font-medium">{selectedPlan.maxPhotos} photos</span> and have up to{" "}
+          <span className="font-medium">{selectedPlan.maxActiveListings} active listings</span>.
         </span>
       </div>
 

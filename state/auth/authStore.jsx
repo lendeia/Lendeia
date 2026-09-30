@@ -106,7 +106,7 @@ export function AuthProvider({ children }) {
       .then((user) => setAccount(user))
       .catch((err) => {
         console.error("Sign-in failed:", err);
-        if (err.code === "ACCOUNT_BANNED" || err.code === "ACCOUNT_SUSPENDED") {
+        if (err.code === "ACCOUNT_BANNED" || err.code === "ACCOUNT_SUSPENDED" || err.code === "ACCOUNT_PENDING_DELETION") {
           setAccountActionReason(err.message);
           return;
         }

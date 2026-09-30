@@ -19,7 +19,7 @@ import React, { useEffect, useState } from "react";
 import { Home as HomeIcon, Map as MapIcon, ClipboardList, User, MessageCircle, Bell, X, Grid, Plus } from "lucide-react";
 import Button from "./Button";
 import SubscriptionModal from "./SubscriptionModal";
-import { getPlanById } from "./PlanCard";
+import { getPlanById, SUBSCRIPTIONS_ENABLED } from "./PlanCard";
 import { useAuth } from "../../state/auth/authStore";
 import { getMySubscription } from "../../backend/supabase/subscription";
 import { getMyConversations } from "../../backend/supabase/messages";
@@ -321,7 +321,7 @@ export function TopNav({ page, setPage, viewNotification }) {
             which is exactly the kind of thing that made this bar feel
             like it had no breathing room on a phone). Full label stays
             on desktop, unchanged. */}
-        {account && !account.isAnonymous && (
+        {SUBSCRIPTIONS_ENABLED && account && !account.isAnonymous && (
           <button
             onClick={() => setShowSubscribe(true)}
             className={`flex items-center gap-1 px-2.5 md:px-3 py-1.5 rounded-full text-[12.5px] font-semibold transition-colors ${
@@ -335,7 +335,6 @@ export function TopNav({ page, setPage, viewNotification }) {
             <span className="hidden md:inline">{plan.name}</span>
           </button>
         )}
-
         {/* Notifications now sits directly next to the avatar, per
             explicit request — previously separated from it by the
             subscription badge in between. */}
@@ -345,7 +344,16 @@ export function TopNav({ page, setPage, viewNotification }) {
           <button
             onClick={() => setPage("profile")}
             className={`w-9 h-9 rounded-full overflow-hidden ring-2 flex items-center justify-center shrink-0 bg-[#17231D]/8 transition-all ${
-              page === "profile" ? "ring-[#E2932E]" : "ring-transparent"
+              page === "profile"
+                ? "ring-[#E2932E]"
+                : account.isAnonymous
+                // Guest accounts get a permanent, always-visible ring
+                // (not just the "you're on the Profile page right now"
+                // highlight every account already had) — a quiet visual
+                // cue that this is a temporary, unverified session,
+                // distinct from a real signed-in account's plain avatar.
+                ? "ring-[#8A9089]/50"
+                : "ring-transparent"
             }`}
             title={account.name}
           >
