@@ -30,7 +30,7 @@ import PresenceBadge from "../../components/PresenceBadge";
 import { getOwnerAllListings } from "../../../backend/supabase/listings";
 import { useAuth } from "../../../state/auth/authStore";
 import { getPublicProfile } from "../../../backend/supabase/users";
-import { getUserReputationSummary, getReviewsForOwner, reportReview } from "../../../backend/supabase/reviews";
+import { getShopReviews, summarizeReviews, summarizeByListing, getCompletedRentalsCount, reportReview } from "../../../backend/supabase/reviews";
 import { getRenterVerification } from "../../../backend/supabase/rentals";
 
 function StarRow({ rating, size = 14 }) {
@@ -80,9 +80,15 @@ const CATEGORY_LABELS = {
 export default function OwnerStore({ ownerId, back, openItem, messageUser, visitProfile, goToHelp }) {
   const { account } = useAuth();
   const [profile, setProfile] = useState(null);
-  const [reputation, setReputation] = useState({ avgRating: 0, reviewCount: 0, completedRentals: 0, categories: null });
+  const [completedRentals, setCompletedRentals] = useState(0);
   const [isVerified, setIsVerified] = useState(false);
-  const [reviews, setReviews] = useState([]);
+  // shopReviews: every review of this person's ITEMS (matches what each
+  // item's own page shows). renterReviews: reviews they received while
+  // renting from others — kept separate so they never skew the shop's
+  // rating. See backend/supabase/reviews.js's getShopReviews.
+  const [shopReviews, setShopReviews] = useState([]);
+  const [renterReviews, setRenterReviews] = useState([]);
+  const [reviewsError, setReviewsError] = useState(null);
   const [ownerListings, setOwnerListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -94,32 +100,53 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setShopReviews([]);
+    setRenterReviews([]);
+    setReviewsError(null);
     Promise.all([
       getPublicProfile(ownerId),
-      getUserReputationSummary(ownerId),
-      getReviewsForOwner(ownerId),
+      getCompletedRentalsCount(ownerId),
       getRenterVerification(ownerId),
       // Full listing set — active AND delisted — so a delisted item
       // still shows here (with a "Not currently listed" label) instead
       // of silently vanishing the moment it's taken off the
-      // marketplace. Previously this page only ever read from the
-      // shared active-only listings context, which made that
-      // impossible.
+      // marketplace.
       getOwnerAllListings(ownerId),
     ])
-      .then(([p, rep, rv, verification, allListings]) => {
+      .then(async ([p, completed, verification, allListings]) => {
         if (cancelled) return;
         setProfile(p);
-        setReputation(rep);
-        setReviews(rv);
+        setCompletedRentals(completed);
         setIsVerified(verification.isVerified);
         setOwnerListings(allListings);
+        // Reviews are fetched AFTER the listings so they can be matched
+        // against every one of this shop's items. A failure here must not
+        // masquerade as "no reviews yet" — it gets its own message below.
+        try {
+          const { shopReviews: shop, renterReviews: asRenter } = await getShopReviews(
+            ownerId,
+            allListings.map((l) => l.id)
+          );
+          if (cancelled) return;
+          setShopReviews(shop);
+          setRenterReviews(asRenter);
+        } catch (err) {
+          if (!cancelled) setReviewsError(err.message || "Couldn't load reviews.");
+        }
       })
       .catch((err) => { if (!cancelled) setError(err.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [ownerId]);
 
+  // A "shop" = anyone with items listed or reviews on items. Its headline
+  // rating comes from reviews of its items only; a pure renter's profile
+  // uses the reviews they received as a renter instead.
+  const isShop = ownerListings.length > 0 || shopReviews.length > 0;
+  const headlineReviews = isShop ? shopReviews : renterReviews;
+  const reputation = summarizeReviews(headlineReviews);
+  const itemRatings = summarizeByListing(shopReviews);
+  const itemNames = Object.fromEntries(ownerListings.map((l) => [l.id, l.name]));
   const activeCategoryEntries = reputation.categories
     ? Object.entries(reputation.categories).filter(([, v]) => v !== null && v !== undefined)
     : [];
@@ -143,6 +170,45 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
       window.alert(err.message || "Couldn't submit the report. Please try again.");
     }
   };
+
+  const renderReviews = (list, showItemName) =>
+    list.length === 0 ? (
+      <p className="text-[14px] text-[#6b6f66]">No reviews yet.</p>
+    ) : (
+      <div className="rounded-xl border border-[#17231D]/8 bg-white divide-y divide-[#17231D]/8">
+        {list.map((r) => (
+          <div key={r.id} className="px-4 py-4">
+            <div className="flex items-center justify-between">
+              {/* Clicking a reviewer's name/avatar re-navigates this same
+                  page for THEM — lets anyone browse from review to review. */}
+              <button
+                onClick={() => visitProfile?.(r.reviewerId)}
+                className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+              >
+                <Avatar url={r.reviewerAvatarUrl} name={r.reviewerName} />
+                <span className="text-[13.5px] font-medium text-[#17231D] hover:underline">{r.reviewerName}</span>
+              </button>
+              <StarRow rating={r.rating} size={12} />
+            </div>
+            {showItemName && r.listingId && itemNames[r.listingId] && (
+              <p className="text-[11.5px] text-[#4B5D46] mt-1.5">On: {itemNames[r.listingId]}</p>
+            )}
+            {r.comment && <p className="text-[13.5px] text-[#3c3f38] mt-1.5">{r.comment}</p>}
+            <div className="flex items-center justify-between mt-1.5">
+              <p className="text-[11.5px] text-[#8A9089]">
+                {new Date(r.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+              </p>
+              <button
+                onClick={() => handleReportReview(r.id)}
+                className="text-[11px] text-[#8A9089] hover:text-red-600 underline"
+              >
+                Report
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
 
   if (!ownerId) return null;
 
@@ -217,11 +283,13 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
                   <StarRow rating={reputation.avgRating} />
                   {reputation.avgRating} · {reputation.reviewCount} review{reputation.reviewCount === 1 ? "" : "s"}
                 </p>
+              ) : reviewsError ? (
+                <p className="text-[13.5px] text-[#8A9089] mt-1">Ratings unavailable right now</p>
               ) : (
                 <p className="text-[13.5px] text-[#8A9089] mt-1">New · no reviews yet</p>
               )}
               <p className="text-[13px] text-[#8A9089] mt-0.5">
-                {reputation.completedRentals} completed rental{reputation.completedRentals === 1 ? "" : "s"}
+                {completedRentals} completed rental{completedRentals === 1 ? "" : "s"}
                 {ownerListings.length > 0 && ` · ${ownerListings.length} item${ownerListings.length === 1 ? "" : "s"} listed`}
                 {profile?.city && ` · ${profile.city}`}
               </p>
@@ -278,7 +346,15 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
               <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
                 {ownerListings.map((item) =>
                   item.isActive ? (
-                    <ListingCard key={item.id} item={item} onOpen={openItem} />
+                    <ListingCard
+                      key={item.id}
+                      item={{
+                        ...item,
+                        realRating: itemRatings[item.id]?.avgRating ?? null,
+                        realReviewCount: itemRatings[item.id]?.reviewCount ?? 0,
+                      }}
+                      onOpen={openItem}
+                    />
                   ) : (
                     // Still genuinely locked — no click-through, no
                     // onClick at all — just a plainer visual treatment
@@ -302,42 +378,23 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
             </>
           )}
 
-          <h2 className="font-medium text-[15px] text-[#17231D] mt-10 mb-3">Reviews</h2>
-          {reviews.length === 0 ? (
-            <p className="text-[14px] text-[#6b6f66]">No reviews yet.</p>
+          <h2 className="font-medium text-[15px] text-[#17231D] mt-10 mb-3">
+            {isShop ? "Reviews of this store's items" : "Reviews"}
+            {headlineReviews.length > 0 && ` (${headlineReviews.length})`}
+          </h2>
+          {reviewsError ? (
+            <p className="text-[14px] text-red-600">Couldn't load reviews: {reviewsError}</p>
           ) : (
-            <div className="rounded-xl border border-[#17231D]/8 bg-white divide-y divide-[#17231D]/8">
-              {reviews.map((r) => (
-                <div key={r.id} className="px-4 py-4">
-                  <div className="flex items-center justify-between">
-                    {/* Clicking a reviewer's name/avatar re-navigates
-                        this same page for THEM — lets anyone browse from
-                        review to review to see who's who, not just a
-                        static name with no face attached to it. */}
-                    <button
-                      onClick={() => visitProfile?.(r.reviewerId)}
-                      className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
-                    >
-                      <Avatar url={r.reviewerAvatarUrl} name={r.reviewerName} />
-                      <span className="text-[13.5px] font-medium text-[#17231D] hover:underline">{r.reviewerName}</span>
-                    </button>
-                    <StarRow rating={r.rating} size={12} />
-                  </div>
-                  {r.comment && <p className="text-[13.5px] text-[#3c3f38] mt-1.5">{r.comment}</p>}
-                  <div className="flex items-center justify-between mt-1.5">
-                    <p className="text-[11.5px] text-[#8A9089]">
-                      {new Date(r.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
-                    </p>
-                    <button
-                      onClick={() => handleReportReview(r.id)}
-                      className="text-[11px] text-[#8A9089] hover:text-red-600 underline"
-                    >
-                      Report
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            renderReviews(headlineReviews, isShop)
+          )}
+
+          {isShop && renterReviews.length > 0 && (
+            <>
+              <h2 className="font-medium text-[15px] text-[#17231D] mt-10 mb-3">
+                Reviews as a renter ({renterReviews.length})
+              </h2>
+              {renderReviews(renterReviews, false)}
+            </>
           )}
         </>
       )}

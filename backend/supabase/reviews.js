@@ -31,6 +31,10 @@ function mapReviewRow(row) {
     reviewerName: row.users?.name || "Guest",
     reviewerAvatarUrl: row.users?.avatar_url || null,
     reviewerRole: row.reviewer_role, // 'renter' | 'owner' — decides which category labels to show
+    // Only present when the query selected them (see SHOP_REVIEW_SELECT);
+    // undefined elsewhere, which every existing caller ignores.
+    listingId: row.listing_id ?? null,
+    reviewedUserId: row.reviewed_user_id ?? null,
     createdAt: row.created_at,
     categories: {
       communication: row.communication_rating,
@@ -45,6 +49,108 @@ function mapReviewRow(row) {
 
 const REVIEW_SELECT =
   "id, rating, comment, created_at, reviewer_id, reviewer_role, communication_rating, reliability_rating, item_accuracy_rating, rental_experience_rating, return_condition_rating, agreement_followed_rating, users!reviews_reviewer_id_fkey(name, avatar_url)";
+
+const SHOP_REVIEW_SELECT = REVIEW_SELECT + ", listing_id, reviewed_user_id";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function avgOf(values) {
+  const nums = values.filter((v) => typeof v === "number" && !Number.isNaN(v));
+  if (!nums.length) return null;
+  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10;
+}
+
+/**
+ * Overall + per-category averages for a list of already-fetched reviews.
+ * Pure function — no network. Returns avgRating 0 / reviewCount 0 /
+ * categories null for an empty list (callers render that as "New").
+ * @param {ReturnType<typeof mapReviewRow>[]} reviews
+ */
+export function summarizeReviews(reviews) {
+  if (!reviews.length) return { avgRating: 0, reviewCount: 0, categories: null };
+  const keys = ["communication", "reliability", "itemAccuracy", "rentalExperience", "returnCondition", "agreementFollowed"];
+  const categories = {};
+  for (const k of keys) categories[k] = avgOf(reviews.map((r) => r.categories?.[k]));
+  return { avgRating: avgOf(reviews.map((r) => r.rating)) ?? 0, reviewCount: reviews.length, categories };
+}
+
+/**
+ * Per-item rating map ({ [listingId]: { avgRating, reviewCount } }) from
+ * already-fetched shop reviews — lets the store show a star rating on
+ * each of its item cards without one request per item.
+ */
+export function summarizeByListing(reviews) {
+  const groups = {};
+  for (const r of reviews) {
+    if (!r.listingId) continue;
+    (groups[r.listingId] ||= []).push(r);
+  }
+  const out = {};
+  for (const [id, list] of Object.entries(groups)) {
+    out[id] = { avgRating: avgOf(list.map((r) => r.rating)) ?? 0, reviewCount: list.length };
+  }
+  return out;
+}
+
+/**
+ * Everything a SHOP page should show, in one query: every review left
+ * about any of this owner's items (active, delisted, or since-deleted),
+ * so the shop always agrees with the item pages.
+ *
+ * A review belongs to the shop if EITHER it is tied to one of the
+ * owner's listings (reviews.listing_id — what each item's own page
+ * reads) OR it was written for the owner by a renter (reviewed_user_id).
+ * Matching on both means a review can't be visible on an item page yet
+ * missing from the shop (or the reverse), whichever column is populated.
+ *
+ * Reviews the person RECEIVED as a renter (written by an owner) are
+ * returned separately so they never get blended into the shop's rating.
+ * Legacy rows with no reviewer_role predate two-way reviews, when every
+ * review was renter -> owner, so they count as shop reviews.
+ * @param {string} ownerId
+ * @param {string[]} listingIds - ids of ALL the owner's listings
+ * @returns {Promise<{ shopReviews: object[], renterReviews: object[] }>}
+ */
+export async function getShopReviews(ownerId, listingIds = []) {
+  if (!UUID_RE.test(String(ownerId))) throw new Error("This store link isn't valid.");
+  const supabase = getSupabaseClient();
+  const ids = [...new Set((listingIds || []).filter((id) => UUID_RE.test(String(id))))];
+
+  let query = supabase.from("reviews").select(SHOP_REVIEW_SELECT).order("created_at", { ascending: false });
+  query = ids.length
+    ? query.or(`reviewed_user_id.eq.${ownerId},listing_id.in.(${ids.join(",")})`)
+    : query.eq("reviewed_user_id", ownerId);
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const rows = (data || []).map(mapReviewRow);
+  const idSet = new Set(ids);
+  return {
+    shopReviews: rows.filter((r) => r.reviewerRole !== "owner" && (r.reviewedUserId === ownerId || idSet.has(r.listingId))),
+    renterReviews: rows.filter((r) => r.reviewerRole === "owner" && r.reviewedUserId === ownerId),
+  };
+}
+
+/**
+ * Rating of a SHOP (all reviews of its items) — same numbers the store
+ * page shows, for places that only need the headline (e.g. the owner
+ * card on an item's page). Unlike getOwnerRatingSummary, this does not
+ * blend in reviews the owner received while renting from others.
+ * @param {string} ownerId
+ * @returns {Promise<{ avgRating: number, reviewCount: number }>}
+ */
+export async function getShopRatingSummary(ownerId) {
+  const supabase = getSupabaseClient();
+  let ids = [];
+  try {
+    const { data } = await supabase.rpc("get_owner_all_listings", { p_owner_id: ownerId });
+    ids = (data || []).map((row) => row.id);
+  } catch {
+    ids = []; // falls back to matching on reviewed_user_id alone
+  }
+  const { shopReviews } = await getShopReviews(ownerId, ids);
+  const { avgRating, reviewCount } = summarizeReviews(shopReviews);
+  return { avgRating, reviewCount };
+}
 
 /**
  * Real aggregate rating for a user (blended across however they were

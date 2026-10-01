@@ -22,7 +22,7 @@ import { useAuth } from "../../../state/auth/authStore";
 import { useListings } from "../../../state/listings/listingsStore";
 import { useMyLocation } from "../../../state/location/locationStore";
 import { distanceKm } from "../../../shared/geo";
-import { getOwnerRatingSummary, getListingRatingSummary, getReviewsForListing } from "../../../backend/supabase/reviews";
+import { getShopRatingSummary, getListingRatingSummary, getReviewsForListing } from "../../../backend/supabase/reviews";
 import { getPublicProfile } from "../../../backend/supabase/users";
 import ItemLocationMap from "../../components/ItemLocationMap";
 import { useSavedListings } from "../../../state/saved/savedStore";
@@ -184,7 +184,7 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
   useEffect(() => {
     if (!item?.ownerId) return;
     let cancelled = false;
-    getOwnerRatingSummary(item.ownerId)
+    getShopRatingSummary(item.ownerId)
       .then((r) => { if (!cancelled) setOwnerRating(r); })
       .catch((err) => { console.error("Couldn't load owner rating:", err); }); // non-critical, but logged rather than silently swallowed
     return () => { cancelled = true; };

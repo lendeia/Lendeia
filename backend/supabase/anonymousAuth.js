@@ -314,9 +314,10 @@ export async function upgradeWithEmailPassword(email, password) {
  * Confirms the email a guest session just upgraded with, using the
  * 6-digit code from the "Confirm signup" email instead of making them
  * click a link — the actual code behind the code-not-link request.
- * type: 'email' matches Supabase's own documented pattern for
- * confirming an email change/addition via OTP (as opposed to 'signup',
- * which is for a brand-new, never-anonymous account). Note: Supabase
+ * type: 'email_change' matches the "Change email address" template that
+ * Supabase sends when a guest session adds an email via updateUser (as
+ * opposed to 'signup', which is for a brand-new, never-anonymous account).
+ * That template — not "Confirm sign up" — must contain {{ .Token }}. Note: Supabase
  * has an open, documented bug (github.com/supabase/supabase#25787)
  * where OTP verification can behave unreliably specifically for an
  * ANONYMOUS session being upgraded (as opposed to a normal new
