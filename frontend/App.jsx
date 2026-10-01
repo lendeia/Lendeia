@@ -11,7 +11,7 @@
 //   Wraps every page in frontend/pages/*. Provider order matters: ProfileProvider
 //   reads useAuth() so AuthProvider must be an ancestor of it.
 // ==================================================================
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useLayoutEffect } from "react";
 import MainLayout from "./layouts/MainLayout";
 // import Welcome removed — see App() near the top of this file for why
 import Home from "./pages/Home/Home";
@@ -146,6 +146,18 @@ function AppShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+  // Every screen starts at the top. The whole app shares ONE window
+  // scroll position, so without this, scrolling down on Home and then
+  // tapping Browse/Dashboard/etc. opened that page already scrolled down.
+  // Also resets when moving between two items or two stores (same `page`,
+  // different content). useLayoutEffect runs before any child's useEffect,
+  // so pages that deliberately scroll to a section on open (Legal, Help)
+  // still do that afterwards instead of being yanked back to the top.
+  useLayoutEffect(() => {
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
+  }, [page, item?.id, storeOwnerId]);
 
   const openItem = (it) => {
     setItem(it);
