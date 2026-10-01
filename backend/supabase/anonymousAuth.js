@@ -328,7 +328,7 @@ export async function upgradeWithEmailPassword(email, password) {
  */
 export async function verifyEmailUpgradeCode(email, code) {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: "email" });
+  const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: "email_change" });
   if (error) throw error;
   return data;
 }
