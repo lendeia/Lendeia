@@ -284,7 +284,7 @@ export default function Home({ setPage, openItem, goToBrowse }) {
           </p>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10 min-h-[220px]">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 md:gap-x-6 gap-y-12 min-h-[220px]">
           {visibleListings.length === 0 && (
             // min-h above (on the grid itself) gives this section real
             // visual presence even with nothing to show, instead of
@@ -302,7 +302,7 @@ export default function Home({ setPage, openItem, goToBrowse }) {
             </div>
           )}
           {visibleListings.map((item) => (
-            <ListingCard key={item.id} item={item} onOpen={openItem} isSaved={savedIds.has(item.id)} onToggleSave={toggleSave} />
+            <ListingCard key={item.id} item={item} onOpen={openItem} isSaved={savedIds.has(item.id)} onToggleSave={toggleSave} tall />
           ))}
         </div>
       </section>

@@ -28,7 +28,11 @@
 import React from "react";
 import { MapPin, Star, Heart } from "lucide-react";
 
-export default function ListingCard({ item, onOpen, isSaved, onToggleSave }) {
+// `tall` gives the card a taller photo and roomier text block (used by
+// Home's "Items near you"). On a phone the photo is 3:4 portrait, since a
+// 4:3 landscape tile in a 2-column grid is only ~100px high there; from
+// md up it's square. Every other grid keeps the compact default.
+export default function ListingCard({ item, onOpen, isSaved, onToggleSave, tall = false }) {
   const hasRealDistance = typeof item.distanceFromMe === "number";
   const hasRealRating = typeof item.realReviewCount === "number" && item.realReviewCount > 0;
 
@@ -39,7 +43,7 @@ export default function ListingCard({ item, onOpen, isSaved, onToggleSave }) {
           card whose bottom half was a separate flat white content
           panel. That panel is gone; the text below just sits directly
           on the page, no boxed/bordered container around it. */}
-      <div className="relative aspect-[4/3] rounded-3xl overflow-hidden bg-[#F0EEE9]">
+      <div className={`relative ${tall ? "aspect-[3/4] md:aspect-square" : "aspect-[4/3]"} rounded-3xl overflow-hidden bg-[#F0EEE9]`}>
         <img src={item.img} alt={item.name} className="w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-500 ease-out" />
         <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         {onToggleSave && (
@@ -58,11 +62,11 @@ export default function ListingCard({ item, onOpen, isSaved, onToggleSave }) {
           </span>
         )}
       </div>
-      <div className="pt-4">
-        <h3 className="font-medium text-[13.5px] text-[#17231D] leading-snug truncate">{item.name}</h3>
-        <p className="text-[11.5px] text-[#8A9089] mt-1">{item.brand} · {item.model}</p>
+      <div className={tall ? "pt-5 pb-1" : "pt-4"}>
+        <h3 className={`font-medium ${tall ? "text-[15px]" : "text-[13.5px]"} text-[#17231D] leading-snug truncate`}>{item.name}</h3>
+        <p className={`${tall ? "text-[12.5px] mt-1.5" : "text-[11.5px] mt-1"} text-[#8A9089]`}>{item.brand} · {item.model}</p>
 
-        <div className="flex items-center justify-between mt-2.5">
+        <div className={`flex items-center justify-between ${tall ? "mt-3.5" : "mt-2.5"}`}>
           <span className="flex items-center gap-1 text-[11.5px] text-[#6b6f66] truncate min-w-0">
             <MapPin size={11} className="shrink-0" />
             <span className="truncate">
