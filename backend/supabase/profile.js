@@ -17,11 +17,12 @@
 //   doesn't already cover.
 // ==================================================================
 import { getSupabaseClient } from "./client";
+import { cleanUsername } from "./people";
 
 /**
  * @param {string} userId - must be the CURRENT authenticated user's id;
  *   RLS (`users` update policy) enforces this regardless.
- * @param {{ name?: string, avatarUrl?: string, username?: string, bio?: string,
+ * @param {{ name?: string, avatarUrl?: string, username?: string, shopName?: string, bio?: string,
  *   city?: string, age?: number, gender?: string, phone?: string }} patch
  * @returns {Promise<object>}
  */
@@ -37,7 +38,12 @@ export async function updateMyProfile(userId, patch) {
   const update = {};
   if (patch.name !== undefined) update.name = patch.name.trim();
   if (patch.avatarUrl !== undefined) update.avatar_url = patch.avatarUrl;
-  if (patch.username !== undefined) update.username = patch.username?.trim() || null;
+  if (patch.username !== undefined) update.username = cleanUsername(patch.username);
+  if (patch.shopName !== undefined) {
+    const shop = patch.shopName?.trim() || null;
+    if (shop && (shop.length < 2 || shop.length > 50)) throw new Error("Shop name must be 2-50 characters.");
+    update.shop_name = shop;
+  }
   if (patch.bio !== undefined) update.bio = patch.bio?.trim() || null;
   if (patch.city !== undefined) update.city = patch.city?.trim() || null;
   if (patch.age !== undefined) update.age = patch.age;
@@ -48,10 +54,10 @@ export async function updateMyProfile(userId, patch) {
     .from("users")
     .update(update)
     .eq("id", userId)
-    .select("id, name, avatar_url, username, bio, city, age, gender, phone")
+    .select("id, name, avatar_url, username, shop_name, bio, city, age, gender, phone")
     .single();
   if (error) {
-    if (error.code === "23505") throw new Error("That username is already taken.");
+    if (error.code === "23505") throw new Error("That username is already taken. Usernames must be different from every other one, ignoring capital letters, \".\" and \"_\".");
     throw error;
   }
 
@@ -60,6 +66,7 @@ export async function updateMyProfile(userId, patch) {
     name: data.name,
     avatarUrl: data.avatar_url || null,
     username: data.username || null,
+    shopName: data.shop_name || null,
     bio: data.bio || null,
     city: data.city || null,
     age: data.age || null,
@@ -78,12 +85,13 @@ export async function getMyProfileDetails(userId) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("users")
-    .select("username, bio, city, age, gender, phone")
+    .select("username, shop_name, bio, city, age, gender, phone")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw error;
   return {
     username: data?.username || null,
+    shopName: data?.shop_name || null,
     bio: data?.bio || null,
     city: data?.city || null,
     age: data?.age || null,

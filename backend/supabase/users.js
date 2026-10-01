@@ -22,13 +22,13 @@ import { getSupabaseClient } from "./client";
 
 /**
  * @param {string} userId
- * @returns {Promise<{ id: string, name: string, avatarUrl: string|null, username: string|null, bio: string|null, city: string|null } | null>}
+ * @returns {Promise<{ id: string, name: string, avatarUrl: string|null, username: string|null, shopName: string|null, bio: string|null, city: string|null } | null>}
  */
 export async function getPublicProfile(userId) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("users")
-    .select("id, name, avatar_url, username, bio, city, last_active_at")
+    .select("id, name, avatar_url, username, shop_name, bio, city, last_active_at")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw error;
@@ -38,6 +38,7 @@ export async function getPublicProfile(userId) {
     name: data.name || "Guest",
     avatarUrl: data.avatar_url || null,
     username: data.username || null,
+    shopName: data.shop_name || null,
     bio: data.bio || null,
     city: data.city || null,
     lastActiveAt: data.last_active_at || null,

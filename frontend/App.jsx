@@ -256,7 +256,7 @@ function AppShell() {
     <>
     <MainLayout page={page} setPage={nav} goToLegal={goToLegal} goToHelp={goToHelp} viewNotification={viewNotification}>
       {page === "home" && <Home setPage={nav} openItem={openItem} goToBrowse={goToBrowse} />}
-      {page === "browse" && <Browse openItem={openItem} initialSearch={browseSearchQuery} initialCategory={browseCategory} />}
+      {page === "browse" && <Browse openItem={openItem} visitStore={visitStore} initialSearch={browseSearchQuery} initialCategory={browseCategory} />}
       {page === "details" && (
         <Details
           item={item}

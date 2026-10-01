@@ -26,6 +26,7 @@ import ShareButton from "../../components/ShareButton";
 import { getStoreSharePreviewUrl } from "../../../backend/supabase/client";
 import PhotoViewerModal from "../../components/PhotoViewerModal";
 import { getMyProfileDetails } from "../../../backend/supabase/profile";
+import { checkUsernameAvailability } from "../../../backend/supabase/people";
 import { useMyLocation } from "../../../state/location/locationStore";
 // NOTE: LoginScreen import removed — the manual login flow is retired,
 // see state/auth/authStore.jsx and this file's account/authLoading branch
@@ -75,6 +76,11 @@ const GENDERS = [
 function TrustProfileCard({ account, details, locationGranted, requestLocation, locating, onSave }) {
   const [editing, setEditing] = useState(false);
   const [username, setUsername] = useState(details.username || "");
+  const [shopName, setShopName] = useState(details.shopName || "");
+  // Live "is this username free?" status while typing (debounced).
+  // "idle" = nothing to check; "checking"; or one of the database's
+  // answers: available | yours | taken | reserved | invalid | error.
+  const [usernameStatus, setUsernameStatus] = useState("idle");
   const [bio, setBio] = useState(details.bio || "");
   const [city, setCity] = useState(details.city || "");
   const [age, setAge] = useState(details.age || "");
@@ -88,12 +94,37 @@ function TrustProfileCard({ account, details, locationGranted, requestLocation, 
   // after first render).
   useEffect(() => {
     setUsername(details.username || "");
+    setShopName(details.shopName || "");
     setBio(details.bio || "");
     setCity(details.city || "");
     setAge(details.age || "");
     setGender(details.gender || "");
     setPhone(details.phone || "");
   }, [details]);
+
+  useEffect(() => {
+    const typed = username.trim().replace(/^@+/, "");
+    if (!editing || !typed || typed.toLowerCase() === (details.username || "").toLowerCase()) {
+      setUsernameStatus("idle");
+      return undefined;
+    }
+    let cancelled = false;
+    setUsernameStatus("checking");
+    const timer = setTimeout(() => {
+      checkUsernameAvailability(typed)
+        .then((r) => { if (!cancelled) setUsernameStatus(r); })
+        .catch(() => { if (!cancelled) setUsernameStatus("error"); });
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [username, editing, details.username]);
+  const usernameBlocked = ["taken", "reserved", "invalid"].includes(usernameStatus) || usernameStatus === "checking";
+  const usernameMessage = {
+    checking: ["Checking…", "text-[#8A9089]"],
+    available: ["✓ Available", "text-[#4B5D46]"],
+    taken: ["Already taken. Pick a name that is different from every other username.", "text-red-600"],
+    reserved: ["That username is reserved. Please choose another.", "text-red-600"],
+    invalid: ['3-20 characters: letters, numbers, "_" or ".".', "text-red-600"],
+  }[usernameStatus];
 
   // Real completeness checklist — every item here is something the
   // person actually did, not a fabricated default.
@@ -117,7 +148,10 @@ function TrustProfileCard({ account, details, locationGranted, requestLocation, 
     setError(null);
     try {
       await onSave({
-        username: username.trim() || null,
+        // Only sent when it was actually edited, so an older username that
+        // predates the new format rules never blocks saving other fields.
+        username: username.trim() === (details.username || "") ? undefined : (username.trim() || null),
+        shopName: shopName.trim() || null,
         bio: bio.trim() || null,
         city: city.trim() || null,
         age: age ? Number(age) : null,
@@ -185,7 +219,36 @@ function TrustProfileCard({ account, details, locationGranted, requestLocation, 
         </button>
       ) : (
         <div className="mt-4 space-y-2.5">
-          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" className={inputClass} />
+<div>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="@username (unique)"
+              maxLength={21}
+              autoCapitalize="none"
+              autoCorrect="off"
+              className={inputClass}
+            />
+            {usernameMessage ? (
+              <p className={`text-[11.5px] mt-1 ${usernameMessage[1]}`}>{usernameMessage[0]}</p>
+            ) : (
+              <p className="text-[11px] text-[#8A9089] mt-1">
+                3-20 characters: letters, numbers, "_" or ".". Must be different from every other username. People can find you by searching @{username.trim().replace(/^@+/, "").toLowerCase() || "username"}.
+              </p>
+            )}
+          </div>
+          <div>
+            <input
+              value={shopName}
+              onChange={(e) => setShopName(e.target.value)}
+              placeholder="Shop name (optional, e.g. Lendeia Tools)"
+              maxLength={50}
+              className={inputClass}
+            />
+            <p className="text-[11px] text-[#8A9089] mt-1">
+              Shown on your store page and in search. Different shops can share a name; your @username is what's unique.
+            </p>
+          </div>
           <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Short bio (max 300 characters)" rows={3} maxLength={300} className={inputClass} />
           <div className="grid grid-cols-2 gap-2.5">
             <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City/area" className={inputClass} />
@@ -222,7 +285,7 @@ function TrustProfileCard({ account, details, locationGranted, requestLocation, 
             </button>
             <button
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || usernameBlocked}
               className="flex-1 px-4 py-2.5 rounded-full bg-[#17231D] text-white text-[13px] font-medium disabled:opacity-60"
             >
               {saving ? "Saving…" : "Save"}
@@ -764,7 +827,7 @@ export default function Profile({ goToLegal, goToHelp, goToAdmin }) {
     getMyRole(account.id).then(setMyRole).catch(() => {});
   }, [account?.id, account?.isAnonymous]);
 
-  const [profileDetails, setProfileDetails] = useState({ username: null, bio: null, city: null, age: null, gender: null, phone: null });
+  const [profileDetails, setProfileDetails] = useState({ username: null, shopName: null, bio: null, city: null, age: null, gender: null, phone: null });
   useEffect(() => {
     if (!account?.id || account?.isAnonymous) return;
     let cancelled = false;

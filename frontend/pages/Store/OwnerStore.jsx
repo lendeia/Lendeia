@@ -171,6 +171,12 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
     }
   };
 
+  // A shop name, when the owner set one, replaces the "<name>'s Store"
+  // heading; their personal name then appears as a smaller line.
+  const storeTitle = profile?.shopName
+    ? profile.shopName
+    : `${profile?.name || "Guest"}${ownerListings.length > 0 ? "'s Store" : "'s Profile"}`;
+
   const renderReviews = (list, showItemName) =>
     list.length === 0 ? (
       <p className="text-[14px] text-[#6b6f66]">No reviews yet.</p>
@@ -224,8 +230,8 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
             raw app URL alone can't show a rich preview here. */}
         <ShareButton
           url={getStoreSharePreviewUrl(ownerId)}
-          title={profile?.name ? `${profile.name}'s Store` : "Store"}
-          text={`Check out ${profile?.name || "this"}'s store on Lendeia`}
+          title={storeTitle}
+          text={`Check out ${profile?.shopName || (profile?.name ? `${profile.name}'s store` : "this store")} on Lendeia`}
           label="Share"
         />
       </div>
@@ -262,7 +268,7 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-serif text-[22px] text-[#17231D]">
-                  {profile?.name || "Guest"}{ownerListings.length > 0 ? "'s Store" : "'s Profile"}
+                  {storeTitle}
                 </h1>
                 {isVerified && (
                   <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#4B5D46]/12 text-[#4B5D46] text-[11px] font-semibold border border-[#4B5D46]/30">
@@ -274,6 +280,9 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
                   anywhere but the account owner's own Profile page, so
                   editing your username/bio/city never actually appeared
                   when someone else viewed your public profile. */}
+              {profile?.shopName && profile?.name && (
+                <p className="text-[12.5px] text-[#6b6f66] mt-0.5">by {profile.name}</p>
+              )}
               {profile?.username && (
                 <p className="text-[12.5px] text-[#4B5D46] font-medium mt-0.5">@{profile.username}</p>
               )}

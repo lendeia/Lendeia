@@ -13,7 +13,8 @@
 //   small reusable dropdown local to this file only.
 // ==================================================================
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { Search, ChevronDown, LocateFixed } from "lucide-react";
+import { Search, ChevronDown, LocateFixed, Store as StoreIcon } from "lucide-react";
+import { searchPeople, MIN_PEOPLE_QUERY } from "../../../backend/supabase/people";
 import ListingCard from "../../components/ListingCard";
 import { CATEGORIES } from "../../../shared/constants";
 import { useListings } from "../../../state/listings/listingsStore";
@@ -99,7 +100,7 @@ function FilterDropdown({ label, options, selected, onSelect, renderLabel }) {
 }
 
 // ---- SECTION: MAIN component — Browse page (search/filter/sort listings) ----
-export default function Browse({ openItem, initialSearch, initialCategory }) {
+export default function Browse({ openItem, visitStore, initialSearch, initialCategory }) {
   const { listings } = useListings();
   const { savedIds, toggleSave } = useSavedListings();
   const { coords: myCoords, loading: locating, error: locationError, requestLocation } = useMyLocation();
@@ -124,12 +125,52 @@ export default function Browse({ openItem, initialSearch, initialCategory }) {
   const [cat, setCat] = useState(initialCategory || "All");
   // Sort toggle (Distance/Price) removed by request — see the always-
   // sort-by-distance-when-known comment in `filtered` below.
-  const [search, setSearch] = useState(initialSearch || "");
+  // Two separate searches that never mix: "items" filters listings (name,
+  // brand, category...), "people" looks up shops and @usernames. Each
+  // keeps its own text, so switching tabs doesn't carry one search over
+  // to the other.
+  const startsWithAt = !!initialSearch && initialSearch.trim().startsWith("@");
+  const [mode, setMode] = useState(startsWithAt ? "people" : "items"); // "items" | "people"
+  const [peopleQuery, setPeopleQuery] = useState(startsWithAt ? initialSearch.trim() : "");
+  const [people, setPeople] = useState([]);
+  const [peopleLoading, setPeopleLoading] = useState(false);
+  const [peopleError, setPeopleError] = useState(null);
+  const peopleSearchable = peopleQuery.trim().replace(/^@+/, "").trim().length >= MIN_PEOPLE_QUERY;
+
+  // Debounced lookup; the `cancelled` flag drops a slow, outdated
+  // response so results can never belong to an older query.
+  useEffect(() => {
+    if (mode !== "people") return undefined;
+    setPeopleError(null);
+    if (!peopleSearchable) {
+      setPeople([]);
+      setPeopleLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setPeopleLoading(true);
+    const timer = setTimeout(() => {
+      searchPeople(peopleQuery)
+        .then((rows) => { if (!cancelled) setPeople(rows); })
+        .catch((err) => { if (!cancelled) { setPeople([]); setPeopleError(err.message || "Search failed. Please try again."); } })
+        .finally(() => { if (!cancelled) setPeopleLoading(false); });
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [mode, peopleQuery, peopleSearchable]);
+
+  const [search, setSearch] = useState(startsWithAt ? "" : (initialSearch || ""));
   // Re-sync if navigated here again from Home with a new search term —
   // a plain useState initializer only runs once on mount, so without
   // this, searching a second time from Home while already on Browse
   // wouldn't update anything.
   useEffect(() => {
+    // A search that starts with "@" is a username lookup (e.g. typed on
+    // Home's search bar), so it opens the Shops & people tab instead.
+    if (initialSearch && initialSearch.trim().startsWith("@")) {
+      setMode("people");
+      setPeopleQuery(initialSearch.trim());
+      return;
+    }
     if (initialSearch) setSearch(initialSearch);
   }, [initialSearch]);
   // Same re-sync reasoning for category — clicking a different category
@@ -218,7 +259,7 @@ export default function Browse({ openItem, initialSearch, initialCategory }) {
 
   return (
     <div className={`px-6 md:px-12 py-8 pb-24 md:pb-12 transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}>
-      <h1 className="font-serif text-[26px] md:text-[30px] text-[#17231D]">Browse items</h1>
+      <h1 className="font-serif text-[26px] md:text-[30px] text-[#17231D]">{mode === "people" ? "Find shops & people" : "Browse items"}</h1>
 
       {/* Sticky filter panel — search, categories, and price/distance
           all stay fixed in place and usable while scrolling through
@@ -235,18 +276,43 @@ export default function Browse({ openItem, initialSearch, initialCategory }) {
             stretch made the group look lopsided (a wide bar next to
             three small buttons) even though the container itself was
             centered; a fixed-width group centers as one balanced unit. */}
+        <div className="flex gap-2 mb-3 justify-center md:justify-start">
+          {[["items", "Items"], ["people", "Shops & people"]].map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setMode(key)}
+              className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
+                mode === key ? "bg-[#17231D] text-white" : "bg-[#17231D]/[0.06] text-[#17231D]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex flex-col md:flex-row md:items-center justify-center gap-3">
           <div className="flex items-center gap-2.5 bg-white rounded-xl px-4 py-3 border border-[#17231D]/10 w-full md:w-80 shrink-0">
             <Search size={17} className="text-[#8A9089]" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search items..."
-              className="bg-transparent !outline-none text-[14px] w-full"
-            />
+            {mode === "items" ? (
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search items, e.g. Makita drill..."
+                className="bg-transparent !outline-none text-[14px] w-full"
+              />
+            ) : (
+              <input
+                value={peopleQuery}
+                onChange={(e) => setPeopleQuery(e.target.value)}
+                placeholder="Shop name or @username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                className="bg-transparent !outline-none text-[14px] w-full"
+              />
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 md:shrink-0">
+          <div className={`flex flex-wrap items-center gap-2 md:shrink-0 ${mode === "people" ? "hidden" : ""}`}>
             <FilterDropdown
               options={CATEGORY_OPTIONS}
               selected={CATEGORY_OPTIONS.indexOf(cat)}
@@ -267,7 +333,7 @@ export default function Browse({ openItem, initialSearch, initialCategory }) {
           </div>
         </div>
 
-        {!myCoords && (
+        {mode === "items" && !myCoords && (
           <button
             onClick={requestLocation}
             disabled={locating}
@@ -277,17 +343,68 @@ export default function Browse({ openItem, initialSearch, initialCategory }) {
             {locating ? "Locating…" : "Enable location to filter/sort by distance"}
           </button>
         )}
-        {locationError && <p className="text-[12px] text-red-600 mt-2">{locationError}</p>}
+        {mode === "items" && locationError && <p className="text-[12px] text-red-600 mt-2">{locationError}</p>}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10 mt-8">
-        {filtered.length === 0 && (
-          <p className="col-span-full text-[14px] text-[#6b6f66]">No items match your filters.</p>
-        )}
-        {filtered.map((item) => (
-          <ListingCard key={item.id} item={item} onOpen={openItem} isSaved={savedIds.has(item.id)} onToggleSave={toggleSave} />
-        ))}
-      </div>
+      {mode === "items" ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10 mt-8">
+          {filtered.length === 0 && (
+            <p className="col-span-full text-[14px] text-[#6b6f66]">No items match your filters.</p>
+          )}
+          {filtered.map((item) => (
+            <ListingCard key={item.id} item={item} onOpen={openItem} isSaved={savedIds.has(item.id)} onToggleSave={toggleSave} />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-8 max-w-2xl mx-auto md:mx-0">
+          {!peopleSearchable && (
+            <div className="text-center md:text-left">
+              <p className="text-[14px] text-[#6b6f66]">
+                Search a shop name like <span className="font-medium text-[#17231D]">Lendeia Tools</span>, or a
+                username like <span className="font-medium text-[#17231D]">@renztools</span>.
+              </p>
+              <p className="text-[12.5px] text-[#8A9089] mt-1.5">Looking for equipment instead? Use the Items tab.</p>
+            </div>
+          )}
+          {peopleSearchable && peopleLoading && <p className="text-[14px] text-[#6b6f66]">Searching…</p>}
+          {peopleError && <p className="text-[14px] text-red-600">{peopleError}</p>}
+          {peopleSearchable && !peopleLoading && !peopleError && people.length === 0 && (
+            <p className="text-[14px] text-[#6b6f66]">No shops or people found for "{peopleQuery.trim()}".</p>
+          )}
+          {people.length > 0 && (
+            <div className="rounded-2xl border border-[#17231D]/8 bg-white divide-y divide-[#17231D]/8 overflow-hidden">
+              {people.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => visitStore?.(p.id)}
+                  className="w-full flex items-center gap-3.5 px-4 py-4 text-left hover:bg-[#17231D]/[0.03] transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-[#17231D]/8 flex items-center justify-center shrink-0">
+                    {p.avatarUrl ? (
+                      <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="font-serif text-[18px] text-[#17231D]">{(p.shopName || p.name || "?").charAt(0).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14.5px] font-medium text-[#17231D] truncate">{p.shopName || p.name}</p>
+                    <p className="text-[12.5px] text-[#6b6f66] truncate">
+                      {p.shopName && <span>by {p.name}</span>}
+                      {p.shopName && p.username && " · "}
+                      {p.username && <span className="text-[#4B5D46] font-medium">@{p.username}</span>}
+                      {!p.shopName && !p.username && p.city}
+                    </p>
+                  </div>
+                  <span className="flex items-center gap-1 text-[12px] text-[#8A9089] shrink-0">
+                    <StoreIcon size={13} />
+                    {p.listingCount} item{p.listingCount === 1 ? "" : "s"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
