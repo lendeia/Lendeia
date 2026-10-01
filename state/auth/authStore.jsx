@@ -25,10 +25,12 @@ import {
   ensureAnonymousSession,
   linkGoogleAccount as linkGoogleAccountBackend,
   upgradeWithEmailPassword as upgradeWithEmailPasswordBackend,
+  verifyEmailUpgradeCode as verifyEmailUpgradeCodeBackend,
   signInWithEmailPassword as signInWithEmailPasswordBackend,
   endAnonymousSession,
   changePassword as changePasswordBackend,
   requestPasswordReset as requestPasswordResetBackend,
+  verifyPasswordResetCode as verifyPasswordResetCodeBackend,
 } from "../../backend/supabase/anonymousAuth";
 import { getSupabaseClient } from "../../backend/supabase/client";
 import { getDeviceId } from "../../shared/deviceId";
@@ -40,11 +42,13 @@ const initialAuthState = {
   retryAuth: () => {},
   linkGoogleAccount: async () => {},
   upgradeWithEmailPassword: async () => {},
+  verifyEmailUpgradeCode: async () => {},
   signInWithEmailPassword: async () => {},
   logout: async () => {},
   updateAccount: async () => {},
   changePassword: async () => {},
   requestPasswordReset: async () => {},
+  verifyPasswordResetCode: async () => {},
   // True right after the person clicks a "reset your password" email
   // link and lands back in the app — see requestPasswordReset()'s doc
   // comment. Profile.jsx watches this to auto-open the same
@@ -144,12 +148,11 @@ export function AuthProvider({ children }) {
       if (event === "SIGNED_IN") {
         checkDeviceAccountLimit();
       }
-      // Fires when the person lands back in the app from a "reset your
-      // password" email link (backend/supabase/anonymousAuth.js's
-      // requestPasswordReset). Supabase has already established a
-      // temporary recovery session at this point — refreshing `account`
-      // picks that up, and the flag tells Profile.jsx to prompt them to
-      // actually set a new password.
+      // Fires if Supabase ever establishes a recovery session through
+      // its own redirect mechanism (the OLD link-based flow, kept as a
+      // harmless fallback — verifyPasswordResetCode above is what
+      // actually drives the real, current code-based flow and already
+      // sets this same flag itself, so this case is mostly dormant now).
       if (event === "PASSWORD_RECOVERY") {
         setPasswordRecovery(true);
         refreshSession();
@@ -168,10 +171,20 @@ export function AuthProvider({ children }) {
 
   const upgradeWithEmailPassword = useCallback(async (email, password) => {
     await upgradeWithEmailPasswordBackend(email, password);
-    // No onAuthStateChange event fires until the confirmation email link
-    // is clicked (isAnonymous stays true until then) — nothing further
-    // to do here, the caller should show a "check your email" message.
+    // Confirmation is now a 6-digit code (verifyEmailUpgradeCode below),
+    // not a clicked email link — nothing further to do here, the
+    // caller shows the code-entry step next.
   }, []);
+
+  const verifyEmailUpgradeCode = useCallback(async (email, code) => {
+    await verifyEmailUpgradeCodeBackend(email, code);
+    // Unlike the old link-click flow (which relied on
+    // onAuthStateChange firing once Supabase redirected back),
+    // verifyOtp() updates the session directly in this same call — so
+    // `account` needs an explicit refresh right here to pick up
+    // isAnonymous flipping to false and the new email/authProvider.
+    await refreshSession();
+  }, [refreshSession]);
 
   const signInWithEmailPassword = useCallback(async (email, password) => {
     const user = await signInWithEmailPasswordBackend(email, password);
@@ -231,6 +244,18 @@ export function AuthProvider({ children }) {
     await requestPasswordResetBackend(email);
   }, []);
 
+  // Confirming the code is what actually establishes the recovery
+  // session now — previously that happened automatically when
+  // Supabase redirected back after a clicked email link
+  // (onAuthStateChange's PASSWORD_RECOVERY case below). Setting the
+  // same passwordRecovery flag here reuses that exact existing "now
+  // show the set-a-new-password screen" UI untouched; only how the
+  // recovery session gets started has changed.
+  const verifyPasswordResetCode = useCallback(async (email, code) => {
+    await verifyPasswordResetCodeBackend(email, code);
+    setPasswordRecovery(true);
+  }, []);
+
   const clearPasswordRecovery = useCallback(() => setPasswordRecovery(false), []);
 
   const value = {
@@ -240,11 +265,13 @@ export function AuthProvider({ children }) {
     retryAuth: refreshSession,
     linkGoogleAccount,
     upgradeWithEmailPassword,
+    verifyEmailUpgradeCode,
     signInWithEmailPassword,
     logout,
     updateAccount,
     changePassword,
     requestPasswordReset,
+    verifyPasswordResetCode,
     passwordRecovery,
     clearPasswordRecovery,
     deviceBlockedReason,

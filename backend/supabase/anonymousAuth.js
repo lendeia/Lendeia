@@ -311,6 +311,29 @@ export async function upgradeWithEmailPassword(email, password) {
 }
 
 /**
+ * Confirms the email a guest session just upgraded with, using the
+ * 6-digit code from the "Confirm signup" email instead of making them
+ * click a link — the actual code behind the code-not-link request.
+ * type: 'email' matches Supabase's own documented pattern for
+ * confirming an email change/addition via OTP (as opposed to 'signup',
+ * which is for a brand-new, never-anonymous account). Note: Supabase
+ * has an open, documented bug (github.com/supabase/supabase#25787)
+ * where OTP verification can behave unreliably specifically for an
+ * ANONYMOUS session being upgraded (as opposed to a normal new
+ * signup) — if codes seem to fail here even when correctly typed, that
+ * upstream issue is the likely cause, not something wrong in this call
+ * itself.
+ * @param {string} email
+ * @param {string} code
+ */
+export async function verifyEmailUpgradeCode(email, code) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: "email" });
+  if (error) throw error;
+  return data;
+}
+
+/**
  * For a RETURNING user who already upgraded to email+password on a
  * previous visit (possibly a different device/browser than the one
  * that's currently just anonymous) — signs into that existing permanent
@@ -373,8 +396,25 @@ export async function changePassword(newPassword) {
  */
 export async function requestPasswordReset(email) {
   const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin,
-  });
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
   if (error) throw error;
+}
+
+/**
+ * Confirms a password-reset request with the 6-digit code from the
+ * "Reset Password" email, establishing the same temporary recovery
+ * session a clicked link used to — type: 'recovery' is Supabase's
+ * dedicated OTP type for this specific flow (distinct from 'email',
+ * used for confirming a new/changed email address in
+ * verifyEmailUpgradeCode above). Once this succeeds, the person is in
+ * the same recovery session state as before; they still need to
+ * actually call changePassword() with their new password next.
+ * @param {string} email
+ * @param {string} code
+ */
+export async function verifyPasswordResetCode(email, code) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: "recovery" });
+  if (error) throw error;
+  return data;
 }

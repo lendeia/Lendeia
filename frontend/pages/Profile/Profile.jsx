@@ -467,7 +467,7 @@ function PersonalInfoModal({ account, onClose, onSave, saving, error }) {
 //               (same auth.uid(), nothing already created is orphaned).
 //   "existing" — sign into an account that was already upgraded on a
 //                different browser/device (replaces this session).
-function EmailAuthForm({ onUpgrade, onSignIn, onForgotPassword, goToLegal }) {
+function EmailAuthForm({ onUpgrade, onVerifyCode, onSignIn, onForgotPassword, onVerifyResetCode, goToLegal }) {
   const [mode, setMode] = useState("upgrade");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -475,6 +475,17 @@ function EmailAuthForm({ onUpgrade, onSignIn, onForgotPassword, goToLegal }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  // Code-entry step — shown after a successful signup instead of the
+  // old "check your email for a link" message, since confirmation is
+  // now a 6-digit code typed directly here rather than a clicked link.
+  const [awaitingCode, setAwaitingCode] = useState(false);
+  const [code, setCode] = useState("");
+  // Separate step/state from the signup code above — a different flow
+  // (confirming an email address vs. resetting a password), kept
+  // distinct rather than reusing the same awaitingCode/code so neither
+  // can accidentally interfere with the other's state.
+  const [awaitingResetCode, setAwaitingResetCode] = useState(false);
+  const [resetCode, setResetCode] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -492,13 +503,48 @@ function EmailAuthForm({ onUpgrade, onSignIn, onForgotPassword, goToLegal }) {
     try {
       if (mode === "upgrade") {
         await onUpgrade(email.trim(), password);
-        setSuccess("Check your email for a confirmation link to finish setting up your account.");
+        setAwaitingCode(true);
       } else {
         await onSignIn(email.trim(), password);
         setSuccess("Signed in.");
       }
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVerifyCode = async (e) => {
+    e.preventDefault();
+    setError(null);
+    if (!code.trim()) {
+      setError("Enter the code from your email.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onVerifyCode(email.trim(), code.trim());
+      setSuccess("Account confirmed.");
+      setAwaitingCode(false);
+    } catch (err) {
+      setError(err.message || "That code didn't work. Please check it and try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      // Repeating the same upgrade call makes Supabase send a fresh
+      // code to the same address — there's no separate "resend"
+      // endpoint needed for this.
+      await onUpgrade(email.trim(), password);
+      setSuccess("Sent a new code.");
+    } catch (err) {
+      setError(err.message || "Couldn't resend the code. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -517,7 +563,7 @@ function EmailAuthForm({ onUpgrade, onSignIn, onForgotPassword, goToLegal }) {
     setSubmitting(true);
     try {
       await onForgotPassword(email.trim());
-      setSuccess("Check your email for a link to reset your password.");
+      setAwaitingResetCode(true);
     } catch (err) {
       setError(err.message || "Couldn't send the reset email. Please try again.");
     } finally {
@@ -525,7 +571,106 @@ function EmailAuthForm({ onUpgrade, onSignIn, onForgotPassword, goToLegal }) {
     }
   };
 
-  return (
+  const handleVerifyResetCode = async (e) => {
+    e.preventDefault();
+    setError(null);
+    if (!resetCode.trim()) {
+      setError("Enter the code from your email.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      // Succeeding here flips authStore's passwordRecovery flag, which
+      // Profile.jsx already uses to show the real "set a new password"
+      // screen — nothing further needed in this component once this
+      // succeeds.
+      await onVerifyResetCode(email.trim(), resetCode.trim());
+      setAwaitingResetCode(false);
+    } catch (err) {
+      setError(err.message || "That code didn't work. Please check it and try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResendResetCode = async () => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      await onForgotPassword(email.trim());
+      setSuccess("Sent a new code.");
+    } catch (err) {
+      setError(err.message || "Couldn't resend the code. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return awaitingCode ? (
+    <form onSubmit={handleVerifyCode} className="mt-3 flex flex-col gap-2">
+      <p className="text-[12.5px] text-[#6b6f66]">
+        We sent a 6-digit code to <span className="font-medium text-[#17231D]">{email}</span>. Enter it below to
+        confirm your account.
+      </p>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        placeholder="123456"
+        className="rounded-xl border border-[#17231D]/12 px-4 py-2.5 text-[16px] tracking-[0.3em] text-center outline-none bg-white"
+      />
+      {error && <p className="text-[12.5px] text-red-600">{error}</p>}
+      {success && <p className="text-[12.5px] text-[#4B5D46] font-medium">{success}</p>}
+      <button
+        type="submit"
+        disabled={submitting}
+        className="px-4 py-2.5 rounded-full border border-[#17231D]/20 text-[#17231D] text-[13px] font-medium disabled:opacity-60"
+      >
+        {submitting ? "Checking…" : "Confirm account"}
+      </button>
+      <button
+        type="button"
+        onClick={handleResendCode}
+        disabled={submitting}
+        className="text-[12px] text-[#4B5D46] font-medium disabled:opacity-60"
+      >
+        Resend code
+      </button>
+    </form>
+  ) : awaitingResetCode ? (
+    <form onSubmit={handleVerifyResetCode} className="mt-3 flex flex-col gap-2">
+      <p className="text-[12.5px] text-[#6b6f66]">
+        We sent a 6-digit code to <span className="font-medium text-[#17231D]">{email}</span>. Enter it below to
+        continue resetting your password.
+      </p>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={resetCode}
+        onChange={(e) => setResetCode(e.target.value)}
+        placeholder="123456"
+        className="rounded-xl border border-[#17231D]/12 px-4 py-2.5 text-[16px] tracking-[0.3em] text-center outline-none bg-white"
+      />
+      {error && <p className="text-[12.5px] text-red-600">{error}</p>}
+      {success && <p className="text-[12.5px] text-[#4B5D46] font-medium">{success}</p>}
+      <button
+        type="submit"
+        disabled={submitting}
+        className="px-4 py-2.5 rounded-full border border-[#17231D]/20 text-[#17231D] text-[13px] font-medium disabled:opacity-60"
+      >
+        {submitting ? "Checking…" : "Continue"}
+      </button>
+      <button
+        type="button"
+        onClick={handleResendResetCode}
+        disabled={submitting}
+        className="text-[12px] text-[#4B5D46] font-medium disabled:opacity-60"
+      >
+        Resend code
+      </button>
+    </form>
+  ) : (
     <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-2">
       <div className="flex gap-4 text-[12.5px]">
         <button
@@ -610,7 +755,7 @@ export default function Profile({ goToLegal, goToHelp, goToAdmin }) {
   // file header for why: it used to produce a non-UUID `account.id` that
   // broke real Supabase inserts. `account` is now populated automatically
   // by anonymous auth shortly after the app loads.
-  const { account, authLoading, authError, retryAuth, upgradeWithEmailPassword, signInWithEmailPassword, logout, updateAccount, changePassword, requestPasswordReset, passwordRecovery, clearPasswordRecovery } = useAuth();
+  const { account, authLoading, authError, retryAuth, upgradeWithEmailPassword, verifyEmailUpgradeCode, signInWithEmailPassword, logout, updateAccount, changePassword, requestPasswordReset, verifyPasswordResetCode, passwordRecovery, clearPasswordRecovery } = useAuth();
   const { coords: myCoords, loading: locatingForTrust, requestLocation: requestLocationForTrust } = useMyLocation();
 
   const [myRole, setMyRole] = useState("user");
@@ -899,7 +1044,7 @@ export default function Profile({ goToLegal, goToHelp, goToAdmin }) {
           </p>
 
           <div className="mt-4">
-            <EmailAuthForm onUpgrade={upgradeWithEmailPassword} onSignIn={signInWithEmailPassword} onForgotPassword={requestPasswordReset} goToLegal={goToLegal} />
+            <EmailAuthForm onUpgrade={upgradeWithEmailPassword} onVerifyCode={verifyEmailUpgradeCode} onSignIn={signInWithEmailPassword} onForgotPassword={requestPasswordReset} onVerifyResetCode={verifyPasswordResetCode} goToLegal={goToLegal} />
           </div>
         </div>
       )}
