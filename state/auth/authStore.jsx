@@ -34,6 +34,16 @@ import {
 } from "../../backend/supabase/anonymousAuth";
 import { getSupabaseClient } from "../../backend/supabase/client";
 import { getDeviceId } from "../../shared/deviceId";
+import {
+  MAX_SAVED_ACCOUNTS,
+  listSavedAccounts,
+  subscribeSavedAccounts,
+  saveCurrentAccount as saveCurrentAccountBackend,
+  removeSavedAccount as removeSavedAccountBackend,
+  switchToSavedAccount,
+  syncSavedAccountSession,
+  updateSavedAccountProfile,
+} from "../../backend/supabase/savedAccounts";
 
 const initialAuthState = {
   account: null,
@@ -45,6 +55,13 @@ const initialAuthState = {
   verifyEmailUpgradeCode: async () => {},
   signInWithEmailPassword: async () => {},
   logout: async () => {},
+  // "Switch account" — up to MAX_SAVED_ACCOUNTS accounts kept on this
+  // device (see backend/supabase/savedAccounts.js).
+  savedAccounts: [],
+  maxSavedAccounts: 2,
+  saveCurrentAccount: async () => {},
+  switchAccount: async () => {},
+  removeSavedAccount: () => {},
   updateAccount: async () => {},
   changePassword: async () => {},
   requestPasswordReset: async () => {},
@@ -71,6 +88,8 @@ export function AuthProvider({ children }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
+  const [savedAccounts, setSavedAccounts] = useState(() => listSavedAccounts());
+  useEffect(() => subscribeSavedAccounts(() => setSavedAccounts(listSavedAccounts())), []);
   // Set when a sign-in was just rejected by the device/account-limit
   // check — App.jsx shows a blocking overlay whenever this is non-null.
   const [deviceBlockedReason, setDeviceBlockedReason] = useState(null);
@@ -129,7 +148,10 @@ export function AuthProvider({ children }) {
     // ensureAnonymousSession() so `account` picks up the now-real
     // name/email/avatar and isAnonymous flips to false.
     const supabase = getSupabaseClient();
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      // Supabase rotates refresh tokens; keep a saved account's stored
+      // copy current so switching back to it later still works.
+      syncSavedAccountSession(session);
       // SIGNED_OUT added: after a real logout() below, this is what
       // automatically gives the browser a fresh anonymous session again
       // so browsing keeps working smoothly — without it, `account` would
@@ -205,9 +227,29 @@ export function AuthProvider({ children }) {
     // everything. onAuthStateChange's SIGNED_OUT handler (above) picks
     // up right after this and gives the browser a fresh anonymous
     // session automatically, so browsing keeps working without a reload.
+    // Logging out signs the account out everywhere (its tokens stop
+    // working), so it can no longer be switched to — drop it from the
+    // saved list too, rather than leave a dead entry behind.
+    if (account?.id) removeSavedAccountBackend(account.id);
     await endAnonymousSession();
     setAccount(null);
-  }, []);
+  }, [account?.id]);
+
+  const saveCurrentAccount = useCallback(async () => {
+    await saveCurrentAccountBackend(account);
+  }, [account]);
+
+  const switchAccount = useCallback(async (userId) => {
+    await switchToSavedAccount(userId);
+    await refreshSession();
+  }, [refreshSession]);
+
+  const removeSavedAccount = useCallback((userId) => removeSavedAccountBackend(userId), []);
+
+  // Keep the name/photo shown in the saved list in step with the real one.
+  useEffect(() => {
+    if (account && !account.isAnonymous) updateSavedAccountProfile(account);
+  }, [account]);
 
   const updateAccount = useCallback(async (patch) => {
     if (!account?.id) throw new Error("Not signed in yet.");
@@ -268,6 +310,11 @@ export function AuthProvider({ children }) {
     verifyEmailUpgradeCode,
     signInWithEmailPassword,
     logout,
+    savedAccounts,
+    maxSavedAccounts: MAX_SAVED_ACCOUNTS,
+    saveCurrentAccount,
+    switchAccount,
+    removeSavedAccount,
     updateAccount,
     changePassword,
     requestPasswordReset,

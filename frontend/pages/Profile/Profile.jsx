@@ -27,6 +27,7 @@ import { getStoreSharePreviewUrl } from "../../../backend/supabase/client";
 import PhotoViewerModal from "../../components/PhotoViewerModal";
 import { getMyProfileDetails } from "../../../backend/supabase/profile";
 import { checkUsernameAvailability } from "../../../backend/supabase/people";
+import SwitchAccountCard from "../../components/SwitchAccountCard";
 import { useMyLocation } from "../../../state/location/locationStore";
 // NOTE: LoginScreen import removed — the manual login flow is retired,
 // see state/auth/authStore.jsx and this file's account/authLoading branch
@@ -1111,6 +1112,10 @@ export default function Profile({ goToLegal, goToHelp, goToAdmin }) {
           </div>
         </div>
       )}
+
+      {/* Accounts saved on this device (max 2): quick switching. For a
+          guest it only appears if something is saved. */}
+      <SwitchAccountCard />
 
       {/* "Rental history" and "My listings" stat cards moved out of
           Profile entirely — they now live as title+counter headers on
