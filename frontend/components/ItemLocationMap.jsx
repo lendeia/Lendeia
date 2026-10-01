@@ -62,7 +62,7 @@ export default function ItemLocationMap({ lat, lng, label }) {
   const mapRef = useRef(null);
   const myMarkerRef = useRef(null);
   const [activated, setActivated] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const { coords: myCoords } = useMyLocation();
 
   useEffect(() => {
