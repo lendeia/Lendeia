@@ -113,12 +113,28 @@ export default function ItemLocationMap({ lat, lng, label }) {
   // programmatically (the Extend button below) — it has no way to
   // detect a CSS-driven resize on its own, and would otherwise keep
   // rendering tiles sized for the OLD box while visually sitting in
-  // the new, bigger one.
+  // the new, bigger one (showing as a blank/empty area, which is what
+  // "it won't show" turned out to be). A single fixed-delay timeout
+  // guessing when the CSS transition finishes is fragile — a slower
+  // device/browser could still be mid-transition when it fires,
+  // leaving Leaflet measuring the wrong, in-between size. Listening for
+  // the transition's own real end event is exact regardless of device
+  // speed; the extra immediate + fallback calls are cheap insurance
+  // for the (rare) cases a transitionend event doesn't fire at all.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    const t = setTimeout(() => map.invalidateSize(), 220);
-    return () => clearTimeout(t);
+    const el = containerRef.current;
+    if (!map || !el) return;
+    map.invalidateSize();
+    const onTransitionEnd = (e) => {
+      if (e.propertyName === "height") map.invalidateSize();
+    };
+    el.addEventListener("transitionend", onTransitionEnd);
+    const fallback = setTimeout(() => map.invalidateSize(), 350);
+    return () => {
+      el.removeEventListener("transitionend", onTransitionEnd);
+      clearTimeout(fallback);
+    };
   }, [expanded]);
 
   const activate = () => {
