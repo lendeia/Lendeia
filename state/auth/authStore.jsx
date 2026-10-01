@@ -41,6 +41,7 @@ import {
   saveCurrentAccount as saveCurrentAccountBackend,
   removeSavedAccount as removeSavedAccountBackend,
   switchToSavedAccount,
+  leaveCurrentAccountKeepSaved,
   syncSavedAccountSession,
   updateSavedAccountProfile,
 } from "../../backend/supabase/savedAccounts";
@@ -61,6 +62,10 @@ const initialAuthState = {
   maxSavedAccounts: 2,
   saveCurrentAccount: async () => {},
   switchAccount: async () => {},
+  // True from tapping "Add another account" until the next real account
+  // signs in (which is then saved automatically).
+  addingAccount: false,
+  addAnotherAccount: async () => {},
   removeSavedAccount: () => {},
   updateAccount: async () => {},
   changePassword: async () => {},
@@ -89,6 +94,7 @@ export function AuthProvider({ children }) {
   const [authError, setAuthError] = useState(null);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [savedAccounts, setSavedAccounts] = useState(() => listSavedAccounts());
+  const [addingAccount, setAddingAccount] = useState(false);
   useEffect(() => subscribeSavedAccounts(() => setSavedAccounts(listSavedAccounts())), []);
   // Set when a sign-in was just rejected by the device/account-limit
   // check — App.jsx shows a blocking overlay whenever this is non-null.
@@ -241,8 +247,33 @@ export function AuthProvider({ children }) {
 
   const switchAccount = useCallback(async (userId) => {
     await switchToSavedAccount(userId);
+    setAddingAccount(false);
     await refreshSession();
   }, [refreshSession]);
+
+  // "Add another account": keeps the current account saved and signed in
+  // on the server, leaves it on this browser only, and returns to the
+  // sign-in screen. Whatever real account signs in next is saved
+  // automatically (effect below). Log out can't be used for this — it
+  // revokes the account, so it would vanish from the saved list.
+  const addAnotherAccount = useCallback(async () => {
+    if (!account || account.isAnonymous) {
+      throw new Error("Sign in with an email account first.");
+    }
+    // Throws a readable error if both slots are already taken.
+    await saveCurrentAccountBackend(account);
+    await leaveCurrentAccountKeepSaved();
+    setAccount(null);
+    setAddingAccount(true);
+  }, [account]);
+
+  useEffect(() => {
+    if (!addingAccount || !account || account.isAnonymous) return;
+    setAddingAccount(false);
+    saveCurrentAccountBackend(account).catch(() => {
+      /* the card's "Save this account" button is still there as a fallback */
+    });
+  }, [addingAccount, account]);
 
   const removeSavedAccount = useCallback((userId) => removeSavedAccountBackend(userId), []);
 
@@ -314,6 +345,8 @@ export function AuthProvider({ children }) {
     maxSavedAccounts: MAX_SAVED_ACCOUNTS,
     saveCurrentAccount,
     switchAccount,
+    addingAccount,
+    addAnotherAccount,
     removeSavedAccount,
     updateAccount,
     changePassword,

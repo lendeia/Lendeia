@@ -27,7 +27,7 @@ function AccountAvatar({ name, avatarUrl }) {
 }
 
 export default function SwitchAccountCard() {
-  const { account, savedAccounts, maxSavedAccounts, saveCurrentAccount, switchAccount, removeSavedAccount } = useAuth();
+  const { account, savedAccounts, maxSavedAccounts, saveCurrentAccount, switchAccount, addAnotherAccount, removeSavedAccount } = useAuth();
   const [busyId, setBusyId] = useState(null); // user id being switched to, or "save"
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -35,6 +35,10 @@ export default function SwitchAccountCard() {
   const isRealAccount = !!account && !account.isAnonymous;
   const currentIsSaved = isRealAccount && savedAccounts.some((a) => a.userId === account.id);
   const slotsFull = savedAccounts.length >= maxSavedAccounts;
+  // Adding another account first saves the current one, then needs a
+  // free slot for the new one: so an unsaved current account uses a slot.
+  const slotsLeftForNew = maxSavedAccounts - savedAccounts.length - (currentIsSaved ? 0 : 1);
+  const canAddAnother = isRealAccount && slotsLeftForNew >= 1;
 
   // Nothing to show a guest who has no saved accounts.
   if (!isRealAccount && savedAccounts.length === 0) return null;
@@ -125,6 +129,30 @@ export default function SwitchAccountCard() {
           >
             {busyId === "save" ? "Saving…" : "Save this account on this device"}
           </button>
+        )
+      )}
+
+      {isRealAccount && (
+        canAddAnother ? (
+          <div className="mt-3">
+            <button
+              onClick={() => run("add", addAnotherAccount)}
+              disabled={busyId !== null}
+              className="px-4 py-2 rounded-full bg-[#17231D] text-white text-[12.5px] font-medium disabled:opacity-60"
+            >
+              {busyId === "add" ? "One moment…" : "+ Add another account"}
+            </button>
+            <p className="text-[11.5px] text-[#8A9089] mt-1.5">
+              Keeps this account saved, then takes you to sign in to the other one. Don't use Log out for this —
+              it removes the account from the list.
+            </p>
+          </div>
+        ) : (
+          currentIsSaved && (
+            <p className="text-[12.5px] text-[#6b6f66] mt-3">
+              Both slots are used. Remove one above to add a different account.
+            </p>
+          )
         )
       )}
 

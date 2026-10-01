@@ -159,6 +159,21 @@ export function updateSavedAccountProfile(account) {
 }
 
 /**
+ * Leaves the current account on THIS browser only, without signing it out
+ * on the server — so its saved sign-in keeps working and it can be
+ * switched back to. This is what "Add another account" uses; the normal
+ * Log out (signOut with the default global scope) revokes the account's
+ * tokens everywhere, which is exactly why a saved account can't survive
+ * it. Note the signed-in account is one per browser: other open tabs
+ * follow whatever this does.
+ */
+export async function leaveCurrentAccountKeepSaved() {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.signOut({ scope: "local" });
+  if (error) throw error;
+}
+
+/**
  * Signs in as a saved account. The account being left stays signed in
  * on the server so it can be switched back to.
  * @param {string} userId

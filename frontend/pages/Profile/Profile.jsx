@@ -531,8 +531,8 @@ function PersonalInfoModal({ account, onClose, onSave, saving, error }) {
 //               (same auth.uid(), nothing already created is orphaned).
 //   "existing" — sign into an account that was already upgraded on a
 //                different browser/device (replaces this session).
-function EmailAuthForm({ onUpgrade, onVerifyCode, onSignIn, onForgotPassword, onVerifyResetCode, goToLegal }) {
-  const [mode, setMode] = useState("upgrade");
+function EmailAuthForm({ onUpgrade, onVerifyCode, onSignIn, onForgotPassword, onVerifyResetCode, goToLegal, initialMode = "upgrade" }) {
+  const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -819,7 +819,7 @@ export default function Profile({ goToLegal, goToHelp, goToAdmin }) {
   // file header for why: it used to produce a non-UUID `account.id` that
   // broke real Supabase inserts. `account` is now populated automatically
   // by anonymous auth shortly after the app loads.
-  const { account, authLoading, authError, retryAuth, upgradeWithEmailPassword, verifyEmailUpgradeCode, signInWithEmailPassword, logout, updateAccount, changePassword, requestPasswordReset, verifyPasswordResetCode, passwordRecovery, clearPasswordRecovery } = useAuth();
+  const { account, authLoading, authError, retryAuth, upgradeWithEmailPassword, verifyEmailUpgradeCode, signInWithEmailPassword, logout, addingAccount, updateAccount, changePassword, requestPasswordReset, verifyPasswordResetCode, passwordRecovery, clearPasswordRecovery } = useAuth();
   const { coords: myCoords, loading: locatingForTrust, requestLocation: requestLocationForTrust } = useMyLocation();
 
   const [myRole, setMyRole] = useState("user");
@@ -1100,15 +1100,28 @@ export default function Profile({ goToLegal, goToHelp, goToAdmin }) {
 
       {account.isAnonymous && (
         <div className="rounded-xl border border-[#E2932E]/40 bg-[#E2932E]/8 p-4 mt-6 anim-fade-up">
-          <p className="text-[14px] font-medium text-[#17231D]">You're browsing as a guest</p>
-          <p className="text-[13px] text-[#6b6f66] mt-1 leading-relaxed">
-            Your account only exists in this browser right now — if you clear your browsing data or
-            switch devices, you'll lose access to it permanently. Sign in with email to make it a
-            real, recoverable account so you can list items, request rentals, and message owners.
-          </p>
+          {addingAccount ? (
+            <>
+              <p className="text-[14px] font-medium text-[#17231D]">Add another account</p>
+              <p className="text-[13px] text-[#6b6f66] mt-1 leading-relaxed">
+                Your other account is still saved. Sign in below to the account you want to add (or create a
+                new one) and it will be saved automatically. Changed your mind? Tap <b>Switch</b> on a saved
+                account further down.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-[14px] font-medium text-[#17231D]">You're browsing as a guest</p>
+              <p className="text-[13px] text-[#6b6f66] mt-1 leading-relaxed">
+                Your account only exists in this browser right now — if you clear your browsing data or
+                switch devices, you'll lose access to it permanently. Sign in with email to make it a
+                real, recoverable account so you can list items, request rentals, and message owners.
+              </p>
+            </>
+          )}
 
           <div className="mt-4">
-            <EmailAuthForm onUpgrade={upgradeWithEmailPassword} onVerifyCode={verifyEmailUpgradeCode} onSignIn={signInWithEmailPassword} onForgotPassword={requestPasswordReset} onVerifyResetCode={verifyPasswordResetCode} goToLegal={goToLegal} />
+            <EmailAuthForm onUpgrade={upgradeWithEmailPassword} onVerifyCode={verifyEmailUpgradeCode} onSignIn={signInWithEmailPassword} onForgotPassword={requestPasswordReset} onVerifyResetCode={verifyPasswordResetCode} goToLegal={goToLegal} initialMode={addingAccount ? "existing" : "upgrade"} />
           </div>
         </div>
       )}
