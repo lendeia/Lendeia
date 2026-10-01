@@ -24,7 +24,7 @@
 //   useMyLocation() for the viewer's own position.
 // ==================================================================
 import React, { useEffect, useRef, useState } from "react";
-import { Maximize2, Minimize2, Hand } from "lucide-react";
+import { Hand } from "lucide-react";
 import { useMyLocation } from "../../state/location/locationStore";
 
 const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
@@ -62,7 +62,6 @@ export default function ItemLocationMap({ lat, lng, label }) {
   const mapRef = useRef(null);
   const myMarkerRef = useRef(null);
   const [activated, setActivated] = useState(false);
-  const [expanded, setExpanded] = useState(true);
   const { coords: myCoords } = useMyLocation();
 
   useEffect(() => {
@@ -109,34 +108,6 @@ export default function ItemLocationMap({ lat, lng, label }) {
     }
   }, [myCoords, lat, lng]);
 
-  // Leaflet needs an explicit nudge after its container's size changes
-  // programmatically (the Extend button below) — it has no way to
-  // detect a CSS-driven resize on its own, and would otherwise keep
-  // rendering tiles sized for the OLD box while visually sitting in
-  // the new, bigger one (showing as a blank/empty area, which is what
-  // "it won't show" turned out to be). A single fixed-delay timeout
-  // guessing when the CSS transition finishes is fragile — a slower
-  // device/browser could still be mid-transition when it fires,
-  // leaving Leaflet measuring the wrong, in-between size. Listening for
-  // the transition's own real end event is exact regardless of device
-  // speed; the extra immediate + fallback calls are cheap insurance
-  // for the (rare) cases a transitionend event doesn't fire at all.
-  useEffect(() => {
-    const map = mapRef.current;
-    const el = containerRef.current;
-    if (!map || !el) return;
-    map.invalidateSize();
-    const onTransitionEnd = (e) => {
-      if (e.propertyName === "height") map.invalidateSize();
-    };
-    el.addEventListener("transitionend", onTransitionEnd);
-    const fallback = setTimeout(() => map.invalidateSize(), 350);
-    return () => {
-      el.removeEventListener("transitionend", onTransitionEnd);
-      clearTimeout(fallback);
-    };
-  }, [expanded]);
-
   const activate = () => {
     const map = mapRef.current;
     if (!map) return;
@@ -146,22 +117,11 @@ export default function ItemLocationMap({ lat, lng, label }) {
 
   return (
     <div className="mt-5">
-      <div className="flex items-center justify-between mb-1.5">
-        <p className="text-[13px] font-medium text-[#17231D]">Item location</p>
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-1 text-[11.5px] text-[#4B5D46] font-medium"
-        >
-          {expanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-          {expanded ? "Shrink map" : "Extend map"}
-        </button>
-      </div>
+      <p className="text-[13px] font-medium text-[#17231D] mb-1.5">Item location</p>
       <div className="relative">
         <div
           ref={containerRef}
-          className={`w-full rounded-xl overflow-hidden ring-1 ring-[#17231D]/[0.08] isolate transition-[height] duration-200 ${
-            expanded ? "h-80" : "h-44"
-          }`}
+          className="w-full h-80 rounded-xl overflow-hidden ring-1 ring-[#17231D]/[0.08] isolate"
           style={{ background: "#E4E0D0" }}
         />
         {!activated && (
