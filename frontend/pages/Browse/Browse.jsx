@@ -360,8 +360,7 @@ export default function Browse({ openItem, visitStore, initialSearch, initialCat
           {!peopleSearchable && (
             <div className="text-center md:text-left">
               <p className="text-[14px] text-[#6b6f66]">
-                Search a shop name like <span className="font-medium text-[#17231D]">Lendeia Tools</span>, or a
-                username like <span className="font-medium text-[#17231D]">@renztools</span>.
+                Search a shop name or a username.
               </p>
               <p className="text-[12.5px] text-[#8A9089] mt-1.5">Looking for equipment instead? Use the Items tab.</p>
             </div>
