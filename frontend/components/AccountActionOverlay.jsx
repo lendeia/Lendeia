@@ -26,7 +26,7 @@ export default function AccountActionOverlay({ reason, onClose }) {
         <p className="font-serif text-[19px] text-[#17231D] mt-4">Account access restricted</p>
         <p className="text-[13.5px] text-[#6b6f66] mt-2">{reason}</p>
         <p className="text-[12px] text-[#8A9089] mt-3">
-          If you believe this is a mistake, contact support@lendeia.app.
+          If you believe this is a mistake, contact support.lendeia.business@gmail.com.
         </p>
         <button
           onClick={onClose}

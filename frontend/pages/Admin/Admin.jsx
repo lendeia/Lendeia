@@ -28,6 +28,7 @@ import {
 } from "../../../backend/supabase/admin";
 import { getOwnerAllListings } from "../../../backend/supabase/listings";
 import { SUPPORT_CATEGORIES } from "../../../backend/supabase/support";
+import AttachmentThumbs from "../../components/AttachmentThumbs";
 
 const STATUS_FILTERS = [
   ["all", "All"],
@@ -306,6 +307,7 @@ export default function Admin({ back, visitStore }) {
                 </div>
 
                 <p className="text-[13.5px] text-[#17231D] mt-3 whitespace-pre-wrap">{r.message}</p>
+                <AttachmentThumbs paths={r.attachmentPaths} />
 
                 {(r.reportedName || r.listingName) && (
                   <div className="mt-3 pt-3 border-t border-[#17231D]/8 bg-[#E2932E]/8 -mx-4 px-4 py-2.5">

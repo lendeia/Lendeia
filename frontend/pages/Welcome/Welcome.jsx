@@ -530,8 +530,8 @@ export default function Welcome({ onContinue, goToLegal }) {
         <div className="max-w-5xl mx-auto">
           <h2 className="font-serif text-[24px] md:text-[28px] mb-10">Contact & Support</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5 text-[14px]">
-            <a href="mailto:support@lendeia.app" className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-1 transition-all">
-              <Mail size={16} className="text-[#E2932E]" /> support@lendeia.app
+            <a href="mailto:support.lendeia.business@gmail.com" className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-1 transition-all">
+              <Mail size={16} className="text-[#E2932E]" /> support.lendeia.business@gmail.com
             </a>
             <span className="flex items-center gap-2.5 text-white/85">
               <MessageCircle size={16} className="text-[#E2932E]" /> Customer support

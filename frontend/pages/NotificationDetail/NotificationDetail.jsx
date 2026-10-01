@@ -52,7 +52,7 @@ export default function NotificationDetail({ notification, back }) {
         </div>
 
         <p className="text-[12px] text-[#8A9089] mt-5">
-          If you believe this is a mistake, contact support@lendeia.app.
+          If you believe this is a mistake, contact support.lendeia.business@gmail.com.
         </p>
       </div>
     </div>

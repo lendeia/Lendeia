@@ -66,7 +66,7 @@ export async function getAllSupportRequests() {
   const { data, error } = await supabase
     .from("support_requests")
     .select(
-      "id, user_id, category, message, listing_id, reported_user_id, status, created_at, " +
+      "id, user_id, category, message, listing_id, reported_user_id, status, created_at, attachment_paths, " +
       "users:user_id(name, email), " +
       "reported_user:reported_user_id(name, email), " +
       "listings:listing_id(name, owner:owner_id(id, name, email))"
@@ -99,6 +99,7 @@ export async function getAllSupportRequests() {
       userEmail: r.users?.email || "",
       category: r.category,
       message: r.message,
+      attachmentPaths: r.attachment_paths || [],
       listingId: r.listing_id,
       listingName: r.listings?.name || null,
       reportedUserId: r.reported_user_id,

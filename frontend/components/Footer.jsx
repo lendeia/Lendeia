@@ -44,8 +44,8 @@ export default function Footer({ goToLegal, goToHelp }) {
       <div className="max-w-5xl mx-auto">
         <h2 className="font-serif text-[22px] md:text-[26px] mb-8">Contact & Support</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 text-[14px]">
-          <a href="mailto:support@lendeia.app" className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-1 transition-all">
-            <Mail size={16} className="text-[#E2932E]" /> support@lendeia.app
+          <a href="mailto:support.lendeia.business@gmail.com" className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-1 transition-all">
+            <Mail size={16} className="text-[#E2932E]" /> support.lendeia.business@gmail.com
           </a>
           <button onClick={() => goToHelp?.()} className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-1 transition-all text-left">
             <MessageCircle size={16} className="text-[#E2932E]" /> Customer support

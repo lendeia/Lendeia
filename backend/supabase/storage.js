@@ -132,3 +132,70 @@ export async function uploadMessagePhoto(file, userId) {
   const { data } = supabase.storage.from(MESSAGE_PHOTO_BUCKET).getPublicUrl(path);
   return data.publicUrl;
 }
+
+const REPORT_BUCKET = "report-attachments";
+export const MAX_REPORT_PHOTOS = 5;
+const MAX_REPORT_PHOTO_BYTES = 8 * 1024 * 1024; // matches the bucket's own limit
+const ALLOWED_REPORT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+/**
+ * Checks a chosen photo BEFORE upload so the person gets a clear message
+ * instead of a raw storage error. Returns an error string, or null if OK.
+ * @param {File} file
+ */
+export function validateReportPhoto(file) {
+  if (!ALLOWED_REPORT_TYPES.includes(file.type)) {
+    return `"${file.name}" isn't a supported photo. Use JPG, PNG, WEBP or GIF.`;
+  }
+  if (file.size > MAX_REPORT_PHOTO_BYTES) {
+    return `"${file.name}" is larger than 8 MB.`;
+  }
+  return null;
+}
+
+/**
+ * Uploads photos attached to a report/support request to the PRIVATE
+ * `report-attachments` bucket (see database/schema/support_attachments.sql)
+ * and returns their storage PATHS (not public URLs — the bucket isn't
+ * public; use getReportPhotoUrls() to view them). Files that uploaded
+ * before a later one failed are removed again so nothing is orphaned.
+ * @param {File[]} files
+ * @param {string} userId - must be the CURRENT authenticated user's id.
+ * @returns {Promise<string[]>}
+ */
+export async function uploadReportPhotos(files, userId) {
+  const supabase = getSupabaseClient();
+  const paths = [];
+  try {
+    for (const file of files) {
+      const problem = validateReportPhoto(file);
+      if (problem) throw new Error(problem);
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage
+        .from(REPORT_BUCKET)
+        .upload(path, file, { cacheControl: "3600", upsert: false, contentType: file.type });
+      if (error) throw new Error(`Couldn't upload "${file.name}": ${error.message}`);
+      paths.push(path);
+    }
+    return paths;
+  } catch (err) {
+    if (paths.length) await supabase.storage.from(REPORT_BUCKET).remove(paths).catch(() => {});
+    throw err;
+  }
+}
+
+/**
+ * Turns stored attachment paths into temporary viewable links (valid for
+ * an hour). Only works for the person who uploaded them and for admins —
+ * anyone else simply gets an empty list.
+ * @param {string[]} paths
+ * @returns {Promise<string[]>}
+ */
+export async function getReportPhotoUrls(paths) {
+  if (!paths || !paths.length) return [];
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.storage.from(REPORT_BUCKET).createSignedUrls(paths, 3600);
+  if (error) throw error;
+  return (data || []).filter((d) => d.signedUrl && !d.error).map((d) => d.signedUrl);
+}

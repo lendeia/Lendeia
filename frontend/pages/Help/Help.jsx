@@ -11,9 +11,11 @@
 //   truth in backend/supabase/support.js's SUPPORT_CATEGORIES.
 // ==================================================================
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronLeft, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, CheckCircle2, ImagePlus, X } from "lucide-react";
 import { useAuth } from "../../../state/auth/authStore";
 import { SUPPORT_CATEGORIES, submitSupportRequest, getMySupportRequests } from "../../../backend/supabase/support";
+import { MAX_REPORT_PHOTOS, validateReportPhoto } from "../../../backend/supabase/storage";
+import AttachmentThumbs from "../../components/AttachmentThumbs";
 
 const STATUS_LABEL = { open: "Open", in_progress: "In progress", resolved: "Resolved" };
 
@@ -99,6 +101,34 @@ export default function Help({ back, initialGuideId, initialCategory, initialLis
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [justSubmitted, setJustSubmitted] = useState(null);
+  // Photos chosen for the request being written. `previews` are local
+  // object URLs for showing thumbnails before upload; they're released
+  // whenever the list changes or the form goes away.
+  const [photos, setPhotos] = useState([]);
+  const [previews, setPreviews] = useState([]);
+  const photoInputRef = useRef(null);
+  useEffect(() => {
+    const urls = photos.map((f) => URL.createObjectURL(f));
+    setPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [photos]);
+
+  const handlePhotosChosen = (e) => {
+    const chosen = Array.from(e.target.files || []);
+    e.target.value = ""; // lets the same file be picked again after removing it
+    if (!chosen.length) return;
+    setError(null);
+    for (const f of chosen) {
+      const problem = validateReportPhoto(f);
+      if (problem) { setError(problem); return; }
+    }
+    if (photos.length + chosen.length > MAX_REPORT_PHOTOS) {
+      setError(`You can attach up to ${MAX_REPORT_PHOTOS} photos.`);
+      return;
+    }
+    setPhotos((prev) => [...prev, ...chosen]);
+  };
+  const removePhoto = (index) => setPhotos((prev) => prev.filter((_, i) => i !== index));
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [expandedGuideId, setExpandedGuideId] = useState(initialGuideId || null);
@@ -134,10 +164,12 @@ export default function Help({ back, initialGuideId, initialCategory, initialLis
         message,
         listingId: initialCategory === selectedCategory ? initialListingId : undefined,
         reportedUserId: initialCategory === selectedCategory ? initialReportedUserId : undefined,
+        photos,
       });
       setJustSubmitted(selectedCategory);
       setSelectedCategory(null);
       setMessage("");
+      setPhotos([]);
       setView("categories");
       loadHistory();
     } catch (err) {
@@ -228,7 +260,7 @@ export default function Help({ back, initialGuideId, initialCategory, initialLis
             {SUPPORT_CATEGORIES.map(([key, emoji, label]) => (
               <button
                 key={key}
-                onClick={() => { setSelectedCategory(key); setView("form"); setJustSubmitted(null); setError(null); }}
+                onClick={() => { setSelectedCategory(key); setView("form"); setJustSubmitted(null); setError(null); setPhotos([]); }}
                 className="card card-hover flex flex-col items-start gap-2 p-4 text-left"
               >
                 <span className="text-[22px]">{emoji}</span>
@@ -255,6 +287,45 @@ export default function Help({ back, initialGuideId, initialCategory, initialLis
             placeholder="Describe what you need help with…"
             className="w-full rounded-xl border border-[#17231D]/12 px-4 py-3 text-[14px] outline-none"
           />
+
+          {/* Optional photo evidence — screenshots, a damaged item, etc. */}
+          <div className="mt-3">
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              multiple
+              className="hidden"
+              onChange={handlePhotosChosen}
+            />
+            {previews.length > 0 && (
+              <div className="flex gap-2 flex-wrap mb-2.5">
+                {previews.map((src, i) => (
+                  <div key={src} className="relative w-16 h-16 rounded-xl overflow-hidden bg-[#17231D]/8">
+                    <img src={src} alt={`Attachment ${i + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(i)}
+                      aria-label="Remove photo"
+                      className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/65 text-white flex items-center justify-center"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={photos.length >= MAX_REPORT_PHOTOS || submitting}
+              className="flex items-center gap-1.5 text-[13px] font-medium text-[#4B5D46] disabled:opacity-50"
+            >
+              <ImagePlus size={16} /> Add photos
+              <span className="text-[#8A9089] font-normal">({photos.length}/{MAX_REPORT_PHOTOS}, optional)</span>
+            </button>
+          </div>
+
           {error && <p className="text-[12.5px] text-red-600 mt-2">{error}</p>}
           <button
             type="submit"
@@ -281,6 +352,7 @@ export default function Help({ back, initialGuideId, initialCategory, initialLis
                   </span>
                 </div>
                 <p className="text-[12.5px] text-[#6b6f66] mt-1.5 line-clamp-2">{h.message}</p>
+                <AttachmentThumbs paths={h.attachment_paths} />
                 <p className="text-[11px] text-[#8A9089] mt-1.5">
                   {new Date(h.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
                 </p>
