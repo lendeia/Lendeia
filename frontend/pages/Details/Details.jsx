@@ -26,6 +26,7 @@ import { getOwnerRatingSummary, getListingRatingSummary, getReviewsForListing } 
 import { getPublicProfile } from "../../../backend/supabase/users";
 import ItemLocationMap from "../../components/ItemLocationMap";
 import { useSavedListings } from "../../../state/saved/savedStore";
+import { getPlanById } from "../../components/PlanCard";
 
 // ---- SECTION: sub-component — real, swipeable photo carousel ----
 // Replaces the old static single-image + 3 decorative (non-functional)
@@ -159,8 +160,12 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
   const todayISO = new Date().toISOString().slice(0, 10);
   const [rentalStartDate, setRentalStartDate] = useState(todayISO);
   const [rentalEndDate, setRentalEndDate] = useState(() => {
+    // Defaults to the full fixed rental length from today, matching
+    // the listing's own plan duration — was hardcoded to just
+    // "tomorrow" before, a full-length default makes much more sense
+    // as a starting point than the shortest possible rental.
     const d = new Date();
-    d.setDate(d.getDate() + 1);
+    d.setDate(d.getDate() + getPlanById(item.plan).days);
     return d.toISOString().slice(0, 10);
   });
   const [cancelling, setCancelling] = useState(false);
@@ -264,20 +269,20 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
     (r) => r.itemId === item.id && r.renterId === account?.id && (r.status === "Pending" || r.status === "Accepted")
   );
 
-  // How far into the future a renter can pick an end date is capped by
-  // whichever is SOONER: a flat sanity cap (30 days), or this listing's
-  // own remaining time under its owner's current subscription plan
-  // (item.expirationDate — see frontend/components/PlanCard.jsx's plan
-  // days / backend/supabase/subscription.js). A listing can't be
-  // rented out past the point it's scheduled to expire anyway.
-  const ABSOLUTE_MAX_RENTAL_DAYS = 30;
+  // Fixed rental length — always the listing's own PLAN duration (7
+  // days for Free, more for a paid plan), starting fresh from whatever
+  // start date is picked. Previously this was capped by how much of
+  // the LISTING's own remaining publish window was left (e.g. a 7-day
+  // listing already 4 days old only had 3 days left to browse it at
+  // all) — meaning a rental requested near the end of a listing's life
+  // got cut short to match, even though a rental is a separate thing
+  // from how long the listing stays browsable. A rental you actually
+  // get to make should always be the full length promised, no matter
+  // when in the listing's life you found it.
+  const RENTAL_DURATION_DAYS = getPlanById(item.plan).days;
   const maxEndDateObj = (() => {
-    const cap = new Date();
-    cap.setDate(cap.getDate() + ABSOLUTE_MAX_RENTAL_DAYS);
-    if (item.expirationDate) {
-      const listingExpiry = new Date(item.expirationDate);
-      if (listingExpiry < cap) return listingExpiry;
-    }
+    const cap = new Date(rentalStartDate);
+    cap.setDate(cap.getDate() + RENTAL_DURATION_DAYS);
     return cap;
   })();
   const maxEndDateISO = maxEndDateObj.toISOString().slice(0, 10);
@@ -436,14 +441,17 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
                     onChange={(e) => {
                       const v = e.target.value;
                       setRentalStartDate(v);
-                      // Keep the end date at least one day after a newly
-                      // picked start date, instead of leaving an
-                      // invalid/inverted range sitting there silently.
-                      if (new Date(rentalEndDate) <= new Date(v)) {
-                        const next = new Date(v);
-                        next.setDate(next.getDate() + 1);
-                        setRentalEndDate(next.toISOString().slice(0, 10));
-                      }
+                      // Always jumps to the FULL fixed rental length
+                      // from the new start date — not just "at least
+                      // one more day than before", which could leave a
+                      // much shorter rental sitting there than what's
+                      // actually being offered (e.g. picking day 3
+                      // should give a return date of day 10 on a 7-day
+                      // plan, not day 4 just because that was one day
+                      // past the old start date).
+                      const next = new Date(v);
+                      next.setDate(next.getDate() + RENTAL_DURATION_DAYS);
+                      setRentalEndDate(next.toISOString().slice(0, 10));
                     }}
                     className="w-full mt-1 rounded-lg border border-[#17231D]/15 px-3 py-2 text-[13.5px] outline-none"
                   />

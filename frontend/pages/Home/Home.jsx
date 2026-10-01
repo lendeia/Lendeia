@@ -284,15 +284,22 @@ export default function Home({ setPage, openItem, goToBrowse }) {
           </p>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10 min-h-[220px]">
           {visibleListings.length === 0 && (
-            <p className="col-span-full text-[14px] text-[#6b6f66]">
-              {selectedCategory
-                ? `No ${selectedCategory.toLowerCase()} items nearby right now.`
-                : myCoords
-                ? `No items listed within ${NEAR_YOU_LIMIT_KM} km yet.`
-                : "No items listed yet — be the first to list something!"}
-            </p>
+            // min-h above (on the grid itself) gives this section real
+            // visual presence even with nothing to show, instead of
+            // collapsing down to just a couple thin lines of text —
+            // centered within that space rather than sitting pinned to
+            // the top-left of it.
+            <div className="col-span-full flex items-center justify-center min-h-[220px]">
+              <p className="text-[14px] text-[#6b6f66] text-center">
+                {selectedCategory
+                  ? `No ${selectedCategory.toLowerCase()} items nearby right now.`
+                  : myCoords
+                  ? `No items listed within ${NEAR_YOU_LIMIT_KM} km yet.`
+                  : "No items listed yet — be the first to list something!"}
+              </p>
+            </div>
           )}
           {visibleListings.map((item) => (
             <ListingCard key={item.id} item={item} onOpen={openItem} isSaved={savedIds.has(item.id)} onToggleSave={toggleSave} />
