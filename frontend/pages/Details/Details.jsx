@@ -410,7 +410,11 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
               <span className="text-[#8A9089]">No reviews yet for this item</span>
             )}
             <span className="flex items-center gap-1">
+<<<<<<< HEAD
               <MapPin size={14} className="text-[#E2932E]" /> <span className="font-medium text-[#17231D]">{placeText}{!item.countryCode && <span className="text-[#8A9089] font-normal"> · country not set</span>}</span>
+=======
+              <MapPin size={14} className="text-[#E2932E]" /> <span className="font-medium text-[#17231D]">{placeText}</span>
+>>>>>>> 8d20159b11de442637c7c376efa2ee44f670f103
               {hasRealDistance
                 ? ` · ${itemDistanceFromMe.toFixed(1)} km away`
                 : !myCoords && (

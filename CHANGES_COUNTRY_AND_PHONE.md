@@ -24,6 +24,7 @@
   happens when someone presses the button (same rule your app already followed).
 - **New listings must have a country** (form + database rule). Old listings stay as they are, with no invented country.
 
+<<<<<<< HEAD
 ## Consistency fix (Browse looked different)
 - **Shops & people tab** now shows each person's place with country (it used to show a city only when they had no shop name or username, so usually nothing).
 - **Old listings** (made before countries existed) used to show only the place, so one Browse grid mixed "Cebu City" with "Los Angeles, California, United States".
@@ -31,6 +32,8 @@
   editor/owner_manage/WRITE_09) and the label goes away.
 - Every card in Browse, Home, Saved and a store page uses the same ListingCard, so they all show the same text.
 
+=======
+>>>>>>> 8d20159b11de442637c7c376efa2ee44f670f103
 ## Phone number
 - The "Share my contact number / Stop sharing" switch is **gone** from Messages and Receipt.
 - **Store page**: new "Store info" box (shops) / "Customer info" box (everyone else) with the place and the phone number,

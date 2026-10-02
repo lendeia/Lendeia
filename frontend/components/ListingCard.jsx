@@ -75,10 +75,14 @@ export default function ListingCard({ item, onOpen, isSaved, onToggleSave, tall 
 
         <p className={`flex items-center gap-1 ${tall ? "text-[12.5px] mt-2.5" : "text-[11.5px] mt-2"} text-[#3c3f38] font-medium min-w-0`}>
           <MapPin size={12} className="shrink-0 text-[#E2932E]" />
+<<<<<<< HEAD
           <span className="truncate">
             {placeText}
             {!item.countryCode && <span className="text-[#8A9089] font-normal"> · country not set</span>}
           </span>
+=======
+          <span className="truncate">{placeText}</span>
+>>>>>>> 8d20159b11de442637c7c376efa2ee44f670f103
         </p>
 
         <div className={`flex items-center justify-between ${tall ? "mt-2" : "mt-1.5"}`}>
