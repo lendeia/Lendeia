@@ -278,11 +278,11 @@ export default function Browse({ openItem, visitStore, initialSearch, initialCat
     <div className={`px-6 md:px-12 py-8 pb-24 md:pb-12 transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}>
       <h1 className="font-serif text-[26px] md:text-[30px] text-[#17231D]">{mode === "people" ? "Find shops & people" : "Browse items"}</h1>
       {viewerCountry ? (
-        <p className="text-[13px] text-[#6b6f66] mt-1.5">
+        <p className="text-[13px] leading-snug text-[#6b6f66] mt-2.5 mb-7">
           Showing {mode === "people" ? "shops & people" : "items"} in {countryFlag(viewerCountry)} {countryName(viewerCountry)}
         </p>
       ) : (
-        <p className="text-[13px] text-[#6b6f66] mt-1.5">
+        <p className="text-[13px] leading-snug text-[#6b6f66] mt-2.5 mb-7">
           Showing items from every country. Set your country in Profile (or enable location) to see only items near you.
         </p>
       )}
