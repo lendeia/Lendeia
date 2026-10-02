@@ -472,11 +472,7 @@ export default function MapPage({ openItem }) {
                 )}
               </div>
               <p className="text-[12px] text-[#6b6f66] flex items-center gap-1 truncate mt-0.5">
-<<<<<<< HEAD
                 <MapPin size={11} /> {active.locationFull || active.location || active.area}{!active.countryCode && " · country not set"}
-=======
-                <MapPin size={11} /> {active.locationFull || active.location || active.area}
->>>>>>> 8d20159b11de442637c7c376efa2ee44f670f103
               </p>
             </div>
           </button>

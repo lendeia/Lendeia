@@ -21,11 +21,7 @@ import { useListings } from "../../../state/listings/listingsStore";
 import { useMyLocation } from "../../../state/location/locationStore";
 import { useSavedListings } from "../../../state/saved/savedStore";
 import { distanceKm } from "../../../shared/geo";
-<<<<<<< HEAD
 import { countryName, countryFlag, formatLocation } from "../../../shared/countries";
-=======
-import { countryName, countryFlag } from "../../../shared/countries";
->>>>>>> 8d20159b11de442637c7c376efa2ee44f670f103
 import { getRatingsForListings } from "../../../backend/supabase/reviews";
 
 // Category as a single dropdown option list, matching the same shape

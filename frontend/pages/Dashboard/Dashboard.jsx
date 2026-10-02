@@ -550,11 +550,7 @@ function RequestRow({ request, listing, isOwner, onApprove, onDecline, onCancel,
             {listing.brand && <span>{listing.brand} · {listing.model}</span>}
             {listing.area && (
               <span className="flex items-center gap-1">
-<<<<<<< HEAD
                 <MapPin size={12} /> {listing.locationFull || listing.area}{!listing.countryCode && " · country not set"}
-=======
-                <MapPin size={12} /> {listing.locationFull || listing.area}
->>>>>>> 8d20159b11de442637c7c376efa2ee44f670f103
               </span>
             )}
           </div>
