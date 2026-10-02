@@ -54,8 +54,13 @@ function mapListingRow(row) {
     // Country (ISO code, e.g. "PH") is its own column so the app never has to
     // assume a listing is in the Philippines. `locationFull` is the text to
     // SHOW everywhere: "Los Angeles, California, United States".
-    countryCode: row.country_code || null,
-    locationFull: formatLocation(row.location, row.country_code),
+    // The listing's own country wins. Listings made before countries existed
+    // have none, so they use their OWNER's profile country (what the owner said
+    // about themselves) instead of showing nothing; once the owner edits the
+    // listing it gets its own country and this fallback stops applying.
+    countryCode: row.country_code || row.users?.country_code || null,
+    countryFromOwner: !row.country_code && !!row.users?.country_code,
+    locationFull: formatLocation(row.location, row.country_code || row.users?.country_code),
     category: row.category,
     img: photos[0] || "",
     photos,
@@ -110,7 +115,7 @@ export async function getActiveListings() {
   // fix needed once, after constraints changed.)
   const { data, error } = await supabase
     .from("listings")
-    .select("*, users!listings_owner_id_fkey(name, avatar_url)")
+    .select("*, users!listings_owner_id_fkey(name, avatar_url, country_code)")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -153,7 +158,7 @@ export async function createListing(ownerId, input) {
       plan_expires_at: input.expirationDate || null,
       availability_note: input.available || null,
     })
-    .select("*, users!listings_owner_id_fkey(name, avatar_url)")
+    .select("*, users!listings_owner_id_fkey(name, avatar_url, country_code)")
     .single();
 
   if (error) throw error;
@@ -201,7 +206,7 @@ export async function updateListing(id, patch) {
     .from("listings")
     .update(update)
     .eq("id", id)
-    .select("*, users!listings_owner_id_fkey(name, avatar_url)")
+    .select("*, users!listings_owner_id_fkey(name, avatar_url, country_code)")
     .single();
 
   if (error) throw error;
@@ -238,7 +243,7 @@ export async function getMyListings(ownerId) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("listings")
-    .select("*, users!listings_owner_id_fkey(name, avatar_url)")
+    .select("*, users!listings_owner_id_fkey(name, avatar_url, country_code)")
     .eq("owner_id", ownerId)
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -301,6 +306,13 @@ export async function getOwnerAllListings(ownerId) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.rpc("get_owner_all_listings", { p_owner_id: ownerId });
   if (error) throw error;
+  // Listings without their own country use the owner's profile country (see
+  // mapListingRow). Best-effort: if this lookup fails the listings still load.
+  let ownerCountry = null;
+  try {
+    const { data: u } = await supabase.from("users").select("country_code").eq("id", ownerId).maybeSingle();
+    ownerCountry = u?.country_code || null;
+  } catch { /* ignore */ }
   return (data || []).map((row) => ({
     id: row.id,
     name: row.name,
@@ -312,8 +324,9 @@ export async function getOwnerAllListings(ownerId) {
     desc: row.description || "",
     location: row.location,
     area: row.location,
-    countryCode: row.country_code || null,
-    locationFull: formatLocation(row.location, row.country_code),
+    countryCode: row.country_code || ownerCountry,
+    countryFromOwner: !row.country_code && !!ownerCountry,
+    locationFull: formatLocation(row.location, row.country_code || ownerCountry),
     lat: row.latitude,
     lng: row.longitude,
     img: row.primary_image_url || (row.photo_urls || [])[0] || "",
@@ -330,7 +343,7 @@ export async function getListingIfVisible(listingId) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("listings")
-    .select("*, users!listings_owner_id_fkey(name, avatar_url)")
+    .select("*, users!listings_owner_id_fkey(name, avatar_url, country_code)")
     .eq("id", listingId)
     .maybeSingle();
   if (error) throw error;
@@ -354,7 +367,7 @@ export async function delistListingManually(id) {
     .from("listings")
     .update({ is_active: false })
     .eq("id", id)
-    .select("*, users!listings_owner_id_fkey(name, avatar_url)")
+    .select("*, users!listings_owner_id_fkey(name, avatar_url, country_code)")
     .single();
   if (error) throw error;
   return mapListingRow(data);

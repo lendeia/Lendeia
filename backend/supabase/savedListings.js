@@ -72,7 +72,7 @@ export async function getMySavedListings(userId) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("saved_listings")
-    .select("created_at, listings(*, users!listings_owner_id_fkey(name, avatar_url))")
+    .select("created_at, listings(*, users!listings_owner_id_fkey(name, avatar_url, country_code))")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -96,8 +96,9 @@ export async function getMySavedListings(userId) {
         desc: l.description || "",
         location: l.location,
         area: l.location,
-        countryCode: l.country_code || null,
-        locationFull: formatLocation(l.location, l.country_code),
+        countryCode: l.country_code || l.users?.country_code || null,
+        countryFromOwner: !l.country_code && !!l.users?.country_code,
+        locationFull: formatLocation(l.location, l.country_code || l.users?.country_code),
         lat: l.latitude,
         lng: l.longitude,
         img: l.primary_image_url || (l.photo_urls || [])[0] || "",
