@@ -11,7 +11,7 @@
 //   rentals.js (verification status) for the subscription/verification sections.
 // ==================================================================
 import React, { useState, useEffect } from "react";
-import { ChevronRight, X, Camera, ShieldCheck, ShieldOff } from "lucide-react";
+import { ChevronRight, X, Camera, ShieldCheck, ShieldOff, LocateFixed } from "lucide-react";
 import { useAuth } from "../../../state/auth/authStore";
 import SubscriptionModal from "../../components/SubscriptionModal";
 import { SUBSCRIPTIONS_ENABLED } from "../../components/PlanCard";
@@ -29,6 +29,8 @@ import { getMyProfileDetails } from "../../../backend/supabase/profile";
 import { checkUsernameAvailability } from "../../../backend/supabase/people";
 import SwitchAccountCard from "../../components/SwitchAccountCard";
 import { useMyLocation } from "../../../state/location/locationStore";
+import CountrySelect from "../../components/CountrySelect";
+import { reverseGeocodeFull } from "../../../shared/geocode";
 // NOTE: LoginScreen import removed — the manual login flow is retired,
 // see state/auth/authStore.jsx and this file's account/authLoading branch
 // below for why.
@@ -84,6 +86,13 @@ function TrustProfileCard({ account, details, locationGranted, requestLocation, 
   const [usernameStatus, setUsernameStatus] = useState("idle");
   const [bio, setBio] = useState(details.bio || "");
   const [city, setCity] = useState(details.city || "");
+  // Country (ISO code). Filled automatically from where the person actually is
+  // when they press "Use my current location" (or when a location is already
+  // known), and can always be changed by hand.
+  const [countryCode, setCountryCode] = useState(details.countryCode || "");
+  const [findingPlace, setFindingPlace] = useState(false);
+  const [locError, setLocError] = useState(null);
+  const { detectedCountryCode } = useMyLocation();
   const [age, setAge] = useState(details.age || "");
   const [gender, setGender] = useState(details.gender || "");
   const [phone, setPhone] = useState(details.phone || "");
@@ -98,10 +107,44 @@ function TrustProfileCard({ account, details, locationGranted, requestLocation, 
     setShopName(details.shopName || "");
     setBio(details.bio || "");
     setCity(details.city || "");
+    setCountryCode(details.countryCode || "");
     setAge(details.age || "");
     setGender(details.gender || "");
     setPhone(details.phone || "");
   }, [details]);
+
+  // Nothing chosen yet but we already know where they are -> pre-select it.
+  useEffect(() => {
+    if (editing && !countryCode && detectedCountryCode) setCountryCode(detectedCountryCode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, detectedCountryCode]);
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setLocError("Your browser doesn't support location detection. Pick your country below.");
+      return;
+    }
+    setFindingPlace(true);
+    setLocError(null);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const place = await reverseGeocodeFull(pos.coords.latitude, pos.coords.longitude);
+        if (place.city || place.region) setCity(place.city || place.region);
+        if (place.countryCode) setCountryCode(place.countryCode);
+        else setLocError("Found you, but couldn't tell which country. Please pick it below.");
+        setFindingPlace(false);
+      },
+      (err) => {
+        setLocError(
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission denied. You can pick your city and country by hand."
+            : "Couldn't detect your location. You can pick your city and country by hand."
+        );
+        setFindingPlace(false);
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+    );
+  };
 
   useEffect(() => {
     const typed = username.trim().replace(/^@+/, "");
@@ -134,6 +177,7 @@ function TrustProfileCard({ account, details, locationGranted, requestLocation, 
     ["Username", !!details.username],
     ["Short bio", !!details.bio],
     ["City/area", !!details.city],
+    ["Country", !!details.countryCode],
     ["Age", !!details.age],
     ["Phone added", !!details.phone],
     ["Email verified", !!account.emailVerified],
@@ -155,6 +199,7 @@ function TrustProfileCard({ account, details, locationGranted, requestLocation, 
         shopName: shopName.trim() || null,
         bio: bio.trim() || null,
         city: city.trim() || null,
+        countryCode: countryCode || null,
         age: age ? Number(age) : null,
         gender: gender || null,
         phone: phone.trim() || null,
@@ -251,8 +296,27 @@ function TrustProfileCard({ account, details, locationGranted, requestLocation, 
             </p>
           </div>
           <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Short bio (max 300 characters)" rows={3} maxLength={300} className={inputClass} />
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="rounded-xl border border-[#17231D]/10 bg-[#F6F4EE]/60 p-3 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[12.5px] font-medium text-[#17231D]">Where are you?</p>
+              <button
+                type="button"
+                onClick={handleUseMyLocation}
+                disabled={findingPlace}
+                className="flex items-center gap-1.5 text-[12.5px] font-medium text-[#4B5D46] disabled:opacity-60"
+              >
+                <LocateFixed size={13} />
+                {findingPlace ? "Locating…" : "Use my current location"}
+              </button>
+            </div>
+            <CountrySelect value={countryCode} onChange={setCountryCode} placeholder="Select your country" className={inputClass} />
             <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City/area" className={inputClass} />
+            {locError && <p className="text-[11.5px] text-red-600">{locError}</p>}
+            <p className="text-[11px] text-[#8A9089]">
+              Your country is shown on your store page and used to tell renters whether an item is local to them.
+            </p>
+          </div>
+          <div>
             <input
               type="number"
               value={age}

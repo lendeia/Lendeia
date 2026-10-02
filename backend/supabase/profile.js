@@ -23,7 +23,7 @@ import { cleanUsername } from "./people";
  * @param {string} userId - must be the CURRENT authenticated user's id;
  *   RLS (`users` update policy) enforces this regardless.
  * @param {{ name?: string, avatarUrl?: string, username?: string, shopName?: string, bio?: string,
- *   city?: string, age?: number, gender?: string, phone?: string }} patch
+ *   city?: string, countryCode?: string, age?: number, gender?: string, phone?: string }} patch
  * @returns {Promise<object>}
  */
 export async function updateMyProfile(userId, patch) {
@@ -46,6 +46,11 @@ export async function updateMyProfile(userId, patch) {
   }
   if (patch.bio !== undefined) update.bio = patch.bio?.trim() || null;
   if (patch.city !== undefined) update.city = patch.city?.trim() || null;
+  if (patch.countryCode !== undefined) {
+    const cc = String(patch.countryCode || "").trim().toUpperCase();
+    if (cc && !/^[A-Z]{2}$/.test(cc)) throw new Error("Pick a valid country.");
+    update.country_code = cc || null;
+  }
   if (patch.age !== undefined) update.age = patch.age;
   if (patch.gender !== undefined) update.gender = patch.gender || null;
   if (patch.phone !== undefined) update.phone = patch.phone?.trim() || null;
@@ -54,7 +59,7 @@ export async function updateMyProfile(userId, patch) {
     .from("users")
     .update(update)
     .eq("id", userId)
-    .select("id, name, avatar_url, username, shop_name, bio, city, age, gender, phone")
+    .select("id, name, avatar_url, username, shop_name, bio, city, country_code, age, gender, phone")
     .single();
   if (error) {
     if (error.code === "23505") throw new Error("That username is already taken. Usernames must be different from every other one, ignoring capital letters, \".\" and \"_\".");
@@ -69,6 +74,7 @@ export async function updateMyProfile(userId, patch) {
     shopName: data.shop_name || null,
     bio: data.bio || null,
     city: data.city || null,
+    countryCode: data.country_code || null,
     age: data.age || null,
     gender: data.gender || null,
     phone: data.phone || null,
@@ -85,7 +91,7 @@ export async function getMyProfileDetails(userId) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("users")
-    .select("username, shop_name, bio, city, age, gender, phone")
+    .select("username, shop_name, bio, city, country_code, age, gender, phone")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw error;
@@ -94,6 +100,7 @@ export async function getMyProfileDetails(userId) {
     shopName: data?.shop_name || null,
     bio: data?.bio || null,
     city: data?.city || null,
+    countryCode: data?.country_code || null,
     age: data?.age || null,
     gender: data?.gender || null,
     phone: data?.phone || null,

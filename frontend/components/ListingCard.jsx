@@ -26,7 +26,9 @@
 //   navigate to Details.jsx.
 // ==================================================================
 import React from "react";
-import { MapPin, Star, Heart } from "lucide-react";
+import { MapPin, Star, Heart, Globe2 } from "lucide-react";
+import { formatLocation, countryName } from "../../shared/countries";
+import { useViewerCountry } from "../../state/location/locationStore";
 
 // `tall` gives the card a taller photo and roomier text block (used by
 // Home's "Items near you"). On a phone the photo is 3:4 portrait, since a
@@ -34,6 +36,11 @@ import { MapPin, Star, Heart } from "lucide-react";
 // md up it's square. Every other grid keeps the compact default.
 export default function ListingCard({ item, onOpen, isSaved, onToggleSave, tall = false }) {
   const hasRealDistance = typeof item.distanceFromMe === "number";
+  // The place is ALWAYS shown, with its country ("Los Angeles, California,
+  // United States") — distance is extra detail, no longer a replacement for it.
+  const placeText = item.locationFull || formatLocation(item.location || item.area, item.countryCode);
+  const viewerCountry = useViewerCountry();
+  const isAbroad = !!(item.countryCode && viewerCountry && item.countryCode !== viewerCountry);
   const hasRealRating = typeof item.realReviewCount === "number" && item.realReviewCount > 0;
 
   return (
@@ -66,12 +73,22 @@ export default function ListingCard({ item, onOpen, isSaved, onToggleSave, tall 
         <h3 className={`font-medium ${tall ? "text-[15px]" : "text-[13.5px]"} text-[#17231D] leading-snug truncate`}>{item.name}</h3>
         <p className={`${tall ? "text-[12.5px] mt-1.5" : "text-[11.5px] mt-1"} text-[#8A9089]`}>{item.brand} · {item.model}</p>
 
-        <div className={`flex items-center justify-between ${tall ? "mt-3.5" : "mt-2.5"}`}>
-          <span className="flex items-center gap-1 text-[11.5px] text-[#6b6f66] truncate min-w-0">
-            <MapPin size={11} className="shrink-0" />
-            <span className="truncate">
-              {hasRealDistance ? `${item.distanceFromMe.toFixed(1)} km` : (item.area || item.location || "Location unknown")}
-            </span>
+        <p className={`flex items-center gap-1 ${tall ? "text-[12.5px] mt-2.5" : "text-[11.5px] mt-2"} text-[#3c3f38] font-medium min-w-0`}>
+          <MapPin size={12} className="shrink-0 text-[#E2932E]" />
+          <span className="truncate">{placeText}</span>
+        </p>
+
+        <div className={`flex items-center justify-between ${tall ? "mt-2" : "mt-1.5"}`}>
+          <span className="flex items-center gap-1.5 text-[11px] text-[#8A9089] truncate min-w-0">
+            {isAbroad && (
+              <span
+                className="inline-flex items-center gap-1 shrink-0 rounded-full bg-[#E2932E]/12 text-[#9a5f12] px-2 py-0.5 text-[10.5px] font-medium"
+                title={`This item is in ${countryName(item.countryCode)}, not in your country`}
+              >
+                <Globe2 size={10} /> Abroad
+              </span>
+            )}
+            {hasRealDistance && <span className="truncate">{item.distanceFromMe.toFixed(1)} km away</span>}
           </span>
           <div className="text-right shrink-0 pl-2">
             <span className="font-serif text-[15px] text-[#17231D] leading-none">₱{item.price}</span>

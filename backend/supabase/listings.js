@@ -16,6 +16,7 @@
 //   those, it does not re-implement them.
 // ==================================================================
 import { getSupabaseClient } from "./client";
+import { formatLocation } from "../../shared/countries";
 
 /**
  * @typedef {import('../../shared/types').Listing} Listing
@@ -50,6 +51,11 @@ function mapListingRow(row) {
     distance: 0,
     area: row.location,
     location: row.location,
+    // Country (ISO code, e.g. "PH") is its own column so the app never has to
+    // assume a listing is in the Philippines. `locationFull` is the text to
+    // SHOW everywhere: "Los Angeles, California, United States".
+    countryCode: row.country_code || null,
+    locationFull: formatLocation(row.location, row.country_code),
     category: row.category,
     img: photos[0] || "",
     photos,
@@ -138,6 +144,7 @@ export async function createListing(ownerId, input) {
       condition: input.condition || "Good",
       description: input.desc ?? input.description ?? "",
       location: input.location,
+      country_code: input.countryCode || null,
       latitude: input.lat ?? null,
       longitude: input.lng ?? null,
       primary_image_url: photos[0] || null,
@@ -174,6 +181,7 @@ export async function updateListing(id, patch) {
   if (patch.condition !== undefined) update.condition = patch.condition;
   if (patch.desc !== undefined) update.description = patch.desc;
   if (patch.location !== undefined) update.location = patch.location;
+  if (patch.countryCode !== undefined) update.country_code = patch.countryCode || null;
   if (patch.lat !== undefined) update.latitude = patch.lat;
   if (patch.lng !== undefined) update.longitude = patch.lng;
   if (patch.available !== undefined) update.availability_note = patch.available;
@@ -304,6 +312,8 @@ export async function getOwnerAllListings(ownerId) {
     desc: row.description || "",
     location: row.location,
     area: row.location,
+    countryCode: row.country_code || null,
+    locationFull: formatLocation(row.location, row.country_code),
     lat: row.latitude,
     lng: row.longitude,
     img: row.primary_image_url || (row.photo_urls || [])[0] || "",

@@ -30,7 +30,7 @@ const GUIDES = [
     steps: [
       "Every visitor starts with a guest session automatically — you can browse right away.",
       "To list an item, message someone, or request a rental, sign in with Google or email from Profile.",
-      "Complete your Trust Profile (photo, bio, city, phone) to help others feel comfortable renting from you.",
+      "Complete your Trust Profile (photo, bio, city and country, phone) to help others feel comfortable renting from you. Your country tells renters whether an item is local to them.",
       "Renting 5 items successfully unlocks Verified Renter status, raising your active-request limit from 2 to 5.",
     ],
   },
@@ -70,7 +70,7 @@ const GUIDES = [
       "Message an owner directly from any item page — you can send photos, not just text.",
       "Check the other person's profile, reviews, and rental history before agreeing to anything — it's the best way to verify who you're actually dealing with.",
       "You can report a specific message or block someone entirely, right from the conversation.",
-      "Phone numbers are only ever shared if both you and the other person choose to, after a rental is accepted.",
+      "If someone added a phone number to their profile, it is shown on their store or profile page and in your chat or rental with them — only to signed-in accounts. Only add a number you are happy for other users to see.",
     ],
   },
   {

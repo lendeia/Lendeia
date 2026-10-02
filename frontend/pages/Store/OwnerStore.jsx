@@ -21,7 +21,8 @@
 //   from state/listings/listingsStore.jsx down to this person's items.
 // ==================================================================
 import React, { useEffect, useState } from "react";
-import { ChevronLeft, Star, MessageCircle, ShieldCheck } from "lucide-react";
+import { ChevronLeft, Star, MessageCircle, ShieldCheck, Phone, MapPin } from "lucide-react";
+import { formatLocation } from "../../../shared/countries";
 import ListingCard from "../../components/ListingCard";
 import ShareButton from "../../components/ShareButton";
 import { getStoreSharePreviewUrl } from "../../../backend/supabase/client";
@@ -29,7 +30,7 @@ import PhotoViewerModal from "../../components/PhotoViewerModal";
 import PresenceBadge from "../../components/PresenceBadge";
 import { getOwnerAllListings } from "../../../backend/supabase/listings";
 import { useAuth } from "../../../state/auth/authStore";
-import { getPublicProfile } from "../../../backend/supabase/users";
+import { getPublicProfile, getUserPhone } from "../../../backend/supabase/users";
 import { getShopReviews, summarizeReviews, summarizeByListing, getCompletedRentalsCount, reportReview } from "../../../backend/supabase/reviews";
 import { getRenterVerification } from "../../../backend/supabase/rentals";
 
@@ -94,6 +95,22 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
   const [error, setError] = useState(null);
   const [chatNotice, setChatNotice] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(false);
+
+  // Phone number — always shown on a store / customer page when the person
+  // added one (no hide/show switch any more). Only signed-in, real accounts
+  // can read it; the database enforces that, this just avoids a pointless call.
+  // undefined = still loading, null = none added / not allowed, string = number.
+  const canSeePhone = !!account && !account.isAnonymous;
+  const [phone, setPhone] = useState(undefined);
+  useEffect(() => {
+    if (!ownerId || !canSeePhone) { setPhone(null); return undefined; }
+    let cancelled = false;
+    setPhone(undefined);
+    getUserPhone(ownerId)
+      .then((p) => { if (!cancelled) setPhone(p); })
+      .catch(() => { if (!cancelled) setPhone(null); });
+    return () => { cancelled = true; };
+  }, [ownerId, canSeePhone]);
 
   useEffect(() => {
     if (!ownerId) return;
@@ -300,7 +317,7 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
               <p className="text-[13px] text-[#8A9089] mt-0.5">
                 {completedRentals} completed rental{completedRentals === 1 ? "" : "s"}
                 {ownerListings.length > 0 && ` · ${ownerListings.length} item${ownerListings.length === 1 ? "" : "s"} listed`}
-                {profile?.city && ` · ${profile.city}`}
+                {(profile?.city || profile?.countryCode) && ` · ${formatLocation(profile.city, profile.countryCode)}`}
               </p>
             </div>
 
@@ -325,6 +342,35 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
           {profile?.bio && (
             <p className="text-[13.5px] text-[#3c3f38] mt-4 leading-relaxed max-w-xl">{profile.bio}</p>
           )}
+
+          {/* Store info (shops) / Customer info (everyone else): where they are
+              and how to reach them. The phone number is always visible here
+              when it was added — no hide/show switch. */}
+          <div className="mt-4 rounded-2xl border border-[#17231D]/8 bg-white px-4 py-3.5 max-w-xl">
+            <p className="text-[12px] uppercase tracking-wide text-[#8A9089] font-medium mb-2">
+              {isShop ? "Store info" : "Customer info"}
+            </p>
+            <div className="space-y-1.5 text-[13.5px] text-[#17231D]">
+              <p className="flex items-center gap-2">
+                <MapPin size={14} className="text-[#E2932E] shrink-0" />
+                {profile?.city || profile?.countryCode
+                  ? formatLocation(profile.city, profile.countryCode)
+                  : <span className="text-[#8A9089]">Location not set</span>}
+              </p>
+              <p className="flex items-center gap-2">
+                <Phone size={14} className="text-[#4B5D46] shrink-0" />
+                {!canSeePhone ? (
+                  <span className="text-[#8A9089]">Sign in with a full account to see the phone number</span>
+                ) : phone === undefined ? (
+                  <span className="text-[#8A9089]">Loading…</span>
+                ) : phone ? (
+                  <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="font-medium hover:underline">{phone}</a>
+                ) : (
+                  <span className="text-[#8A9089]">No phone number added</span>
+                )}
+              </p>
+            </div>
+          </div>
 
           {chatNotice === "signin" && (
             <p className="text-[12.5px] text-[#a15c1f] bg-[#E2932E]/10 rounded-lg px-3 py-2 mt-3">

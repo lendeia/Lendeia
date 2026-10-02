@@ -51,31 +51,11 @@ function useLeaflet() {
 
 const MAP_PICKER_DEFAULT = [14.5995, 120.9842]; // Manila, PH fallback center
 
-// Shared reverse-geocoding helper (coords -> readable address text), used
-// both by "Use my current location" and by the map picker whenever a pin
-// is placed/moved/searched, so the location text field always reflects
-// wherever the pin actually is. Uses BigDataCloud's free client-side
-// reverse-geocode endpoint (no API key, built for direct browser calls —
-// Nominatim's reverse endpoint is more prone to CORS/rate-limit issues
-// when hit straight from the browser, which was silently falling back to
-// raw coordinates instead of a place name).
-export async function reverseGeocode(lat, lng) {
-  try {
-    const res = await fetch(
-      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
-    );
-    if (!res.ok) throw new Error("reverse geocode failed");
-    const data = await res.json();
-    const readable =
-      data.locality ||
-      data.city ||
-      data.principalSubdivision ||
-      [data.locality, data.principalSubdivision].filter(Boolean).join(", ");
-    return readable || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-  } catch {
-    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-  }
-}
+// Reverse geocoding now lives in shared/geocode.js (so state stores can use it
+// too). Re-exported here so existing `import { reverseGeocode } from
+// "../components/LocationPicker"` lines keep working unchanged.
+import { reverseGeocode, reverseGeocodeFull } from "../../shared/geocode";
+export { reverseGeocode, reverseGeocodeFull };
 
 // A single self-contained Leaflet map + draggable marker. Mounts fresh
 // and destroys itself cleanly whenever it (re)mounts — this component is
@@ -177,8 +157,10 @@ export default function LocationPicker({ initialCoords, onPick, onLocationText }
     onPick(c);
     if (onLocationText) {
       setResolving(true);
-      const address = await reverseGeocode(c.lat, c.lng);
-      onLocationText(address);
+      // Full lookup so the caller also learns the COUNTRY of the pin
+      // (second argument — existing callers that only read the text keep working).
+      const place = await reverseGeocodeFull(c.lat, c.lng);
+      onLocationText(place.text, place);
       setResolving(false);
     }
   };
