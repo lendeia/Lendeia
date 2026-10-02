@@ -13,7 +13,7 @@
 //   small reusable dropdown local to this file only.
 // ==================================================================
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { Search, ChevronDown, LocateFixed, Store as StoreIcon } from "lucide-react";
+import { Search, ChevronDown, LocateFixed, Store as StoreIcon, MapPin } from "lucide-react";
 import { searchPeople, MIN_PEOPLE_QUERY } from "../../../backend/supabase/people";
 import ListingCard from "../../components/ListingCard";
 import { CATEGORIES } from "../../../shared/constants";
@@ -21,6 +21,7 @@ import { useListings } from "../../../state/listings/listingsStore";
 import { useMyLocation } from "../../../state/location/locationStore";
 import { useSavedListings } from "../../../state/saved/savedStore";
 import { distanceKm } from "../../../shared/geo";
+import { countryName, countryFlag, formatLocation } from "../../../shared/countries";
 import { getRatingsForListings } from "../../../backend/supabase/reviews";
 
 // Category as a single dropdown option list, matching the same shape
@@ -180,6 +181,10 @@ export default function Browse({ openItem, visitStore, initialSearch, initialCat
   }, [initialCategory]);
   const [priceIdx, setPriceIdx] = useState(0);
   const [distanceIdx, setDistanceIdx] = useState(DEFAULT_DISTANCE_IDX);
+  // Country filter — "All countries" by default, so nothing is hidden, but a
+  // renter can narrow to one country. Only countries that actually have an
+  // active listing are offered. Index 0 = all (FilterDropdown's convention).
+  const [countryIdx, setCountryIdx] = useState(0);
 
   // Real ratings for every visible listing, fetched in one batched query
   // (same pattern already used by MapPage.jsx's pins) rather than trusting
@@ -213,10 +218,20 @@ export default function Browse({ openItem, visitStore, initialSearch, initialCat
     });
   }, [listings, myCoords, ratingsById]);
 
+  const countryOptions = useMemo(() => {
+    const codes = [...new Set(listings.map((l) => l.countryCode).filter(Boolean))];
+    codes.sort((a, b) => countryName(a).localeCompare(countryName(b), "en"));
+    return [{ label: "All countries", code: "" }, ...codes.map((code) => ({ label: `${countryFlag(code)} ${countryName(code)}`, code }))];
+  }, [listings]);
+  // If the chosen country disappears (its last listing was removed), fall back to "all".
+  const safeCountryIdx = countryIdx < countryOptions.length ? countryIdx : 0;
+  const countryFilter = countryOptions[safeCountryIdx]?.code || "";
+
   const filtered = useMemo(() => {
     const priceRange = PRICE_RANGES[priceIdx];
     const distanceRange = DISTANCE_RANGES[distanceIdx];
     let list = cat === "All" ? listingsWithDistance : listingsWithDistance.filter((e) => e.category === cat);
+    if (countryFilter) list = list.filter((e) => e.countryCode === countryFilter);
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -255,7 +270,7 @@ export default function Browse({ openItem, visitStore, initialSearch, initialCat
       });
     }
     return list;
-  }, [listingsWithDistance, cat, search, priceIdx, distanceIdx, myCoords]);
+  }, [listingsWithDistance, cat, search, priceIdx, distanceIdx, myCoords, countryFilter]);
 
   return (
     <div className={`px-6 md:px-12 py-8 pb-24 md:pb-12 transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}>
@@ -318,6 +333,13 @@ export default function Browse({ openItem, visitStore, initialSearch, initialCat
               selected={CATEGORY_OPTIONS.indexOf(cat)}
               onSelect={(idx) => setCat(CATEGORY_OPTIONS[idx])}
             />
+            {countryOptions.length > 2 && (
+              <FilterDropdown
+                options={countryOptions}
+                selected={safeCountryIdx}
+                onSelect={setCountryIdx}
+              />
+            )}
             <FilterDropdown
               options={PRICE_RANGES}
               selected={priceIdx}
@@ -391,8 +413,13 @@ export default function Browse({ openItem, visitStore, initialSearch, initialCat
                       {p.shopName && <span>by {p.name}</span>}
                       {p.shopName && p.username && " · "}
                       {p.username && <span className="text-[#4B5D46] font-medium">@{p.username}</span>}
-                      {!p.shopName && !p.username && p.city}
                     </p>
+                    {(p.city || p.countryCode) && (
+                      <p className="flex items-center gap-1 text-[12px] text-[#3c3f38] truncate mt-0.5">
+                        <MapPin size={11} className="shrink-0 text-[#E2932E]" />
+                        <span className="truncate">{formatLocation(p.city, p.countryCode)}</span>
+                      </p>
+                    )}
                   </div>
                   <span className="flex items-center gap-1 text-[12px] text-[#8A9089] shrink-0">
                     <StoreIcon size={13} />

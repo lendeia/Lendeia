@@ -11,7 +11,8 @@
 //   on the listing row itself (see listings.js's mapListingRow comments).
 // ==================================================================
 import React, { useState, useEffect, useRef } from "react";
-import { ChevronLeft, Star, MapPin, ChevronRight as ArrowRight, Lock, Heart } from "lucide-react";
+import { ChevronLeft, Star, MapPin, ChevronRight as ArrowRight, Lock, Heart, Globe2 } from "lucide-react";
+import { formatLocation, countryName, countryFlag } from "../../../shared/countries";
 import Button from "../../components/Button";
 import Pill from "../../components/Pill";
 import ShareButton from "../../components/ShareButton";
@@ -20,7 +21,7 @@ import PresenceBadge from "../../components/PresenceBadge";
 import { useRentals } from "../../../state/rentals/rentalsStore";
 import { useAuth } from "../../../state/auth/authStore";
 import { useListings } from "../../../state/listings/listingsStore";
-import { useMyLocation } from "../../../state/location/locationStore";
+import { useMyLocation, useViewerCountry } from "../../../state/location/locationStore";
 import { distanceKm } from "../../../shared/geo";
 import { getShopRatingSummary, getListingRatingSummary, getReviewsForListing } from "../../../backend/supabase/reviews";
 import { getPublicProfile } from "../../../backend/supabase/users";
@@ -153,6 +154,11 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
   const { account } = useAuth();
   const { recordView } = useListings();
   const { coords: myCoords, loading: locating, requestLocation } = useMyLocation();
+  // Where the item really is (with country) and whether that's outside the
+  // viewer's own country — so nobody assumes it's local.
+  const placeText = item.locationFull || formatLocation(item.location || item.area, item.countryCode);
+  const viewerCountry = useViewerCountry();
+  const isAbroad = !!(item.countryCode && viewerCountry && item.countryCode !== viewerCountry);
   const [requesting, setRequesting] = useState(false);
   // Real date-range picker state — previously there was none at all;
   // every rental silently used a hardcoded 1-day placeholder regardless
@@ -404,7 +410,7 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
               <span className="text-[#8A9089]">No reviews yet for this item</span>
             )}
             <span className="flex items-center gap-1">
-              <MapPin size={14} /> {item.area}
+              <MapPin size={14} className="text-[#E2932E]" /> <span className="font-medium text-[#17231D]">{placeText}{!item.countryCode && <span className="text-[#8A9089] font-normal"> · country not set</span>}</span>
               {hasRealDistance
                 ? ` · ${itemDistanceFromMe.toFixed(1)} km away`
                 : !myCoords && (
@@ -414,6 +420,16 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
                   )}
             </span>
           </div>
+
+          {isAbroad && (
+            <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-[#E2932E]/30 bg-[#E2932E]/10 px-4 py-3 text-[13px] text-[#7a4b0c]">
+              <Globe2 size={16} className="shrink-0 mt-0.5" />
+              <p>
+                <span className="font-semibold">This item is in {countryFlag(item.countryCode)} {countryName(item.countryCode)}</span>, not in your country.
+                Check the location and pickup details with the owner before you request it.
+              </p>
+            </div>
+          )}
 
           <p className="text-[14.5px] text-[#3c3f38] mt-5 leading-relaxed">{item.desc}</p>
 

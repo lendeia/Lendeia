@@ -58,7 +58,7 @@ export async function checkUsernameAvailability(raw) {
 /**
  * @param {string} query - e.g. "Lendeia Tools" or "@renztools"
  * @returns {Promise<Array<{ id: string, name: string, shopName: string|null, username: string|null,
- *   avatarUrl: string|null, city: string|null, listingCount: number }>>}
+ *   avatarUrl: string|null, city: string|null, countryCode: string|null, listingCount: number }>>}
  */
 export async function searchPeople(query) {
   const q = String(query ?? "").trim();
@@ -66,8 +66,18 @@ export async function searchPeople(query) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.rpc("search_people", { p_query: q, p_limit: 20 });
   if (error) throw error;
+  // search_people() doesn't return the country, so look it up for these few
+  // people in one extra query (country_code is a public column). If that
+  // lookup fails the results still show — just without a country.
+  const ids = (data || []).map((r) => r.id);
+  const countryById = {};
+  if (ids.length) {
+    const { data: rows } = await supabase.from("users").select("id, country_code").in("id", ids);
+    (rows || []).forEach((u) => { countryById[u.id] = u.country_code || null; });
+  }
   return (data || []).map((r) => ({
     id: r.id,
+    countryCode: countryById[r.id] || null,
     name: r.name || "Guest",
     shopName: r.shop_name || null,
     username: r.username || null,

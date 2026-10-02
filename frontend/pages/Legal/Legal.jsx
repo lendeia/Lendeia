@@ -219,7 +219,11 @@ export default function Legal({ back, initialSection }) {
         <Section id="privacy" title="2. Privacy Policy">
           <h3>Information we collect</h3>
           <ul>
-            <li>Name, email, profile photo, and other profile details you provide (username, bio, city, age, gender, phone)</li>
+            <li>Name, email, profile photo, and other profile details you provide (username, bio, city, country, age, gender, phone)</li>
+            <li>
+              Your phone number, if you add one, is shown on your store or profile page and next to your rentals
+              to other signed-in users. Your email address is never shown to other users.
+            </li>
             <li>Location information, only when you choose to share your device location</li>
             <li>Messages you send through the platform, including photo attachments</li>
             <li>Listings you create and your rental history</li>

@@ -23,15 +23,20 @@
 //   lat/lng (backend/supabase/listings.js) to compute real distances.
 // ==================================================================
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { reverseGeocodeFull } from "../../shared/geocode";
+import { useAuth } from "../auth/authStore";
 
 const LocationContext = createContext({
   coords: null,
+  detectedCountryCode: null,
   loading: false,
   error: null,
   requestLocation: () => {},
 });
 
 const STORAGE_KEY = "renta_last_known_location";
+// Country (ISO code) worked out from the last known coordinates, cached with them.
+const COUNTRY_KEY = "renta_last_known_country";
 // A cached fix older than this is more likely to be stale than useful
 // (someone's actual location easily changes over a day) — past this age
 // we ignore the cache and wait for a fresh requestLocation() instead of
@@ -62,6 +67,11 @@ function writeCachedCoords(coords) {
 
 export function LocationProvider({ children }) {
   const [coords, setCoords] = useState(null);
+  // Country the viewer is physically in, looked up from their coordinates
+  // (never from an IP guess). Used only to tell whether a listing is local.
+  const [detectedCountryCode, setDetectedCountryCode] = useState(() => {
+    try { return localStorage.getItem(COUNTRY_KEY) || null; } catch { return null; }
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -72,6 +82,19 @@ export function LocationProvider({ children }) {
     const cached = readCachedCoords();
     if (cached) setCoords(cached);
   }, []);
+
+  // Whenever we have coordinates, work out which country they are in (one
+  // small lookup per change; the answer is cached so reloads don't repeat it).
+  useEffect(() => {
+    if (!coords) return undefined;
+    let cancelled = false;
+    reverseGeocodeFull(coords.lat, coords.lng).then((place) => {
+      if (cancelled || !place.countryCode) return;
+      setDetectedCountryCode(place.countryCode);
+      try { localStorage.setItem(COUNTRY_KEY, place.countryCode); } catch { /* private mode */ }
+    });
+    return () => { cancelled = true; };
+  }, [coords]);
 
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -122,7 +145,7 @@ export function LocationProvider({ children }) {
   }, []);
 
   return (
-    <LocationContext.Provider value={{ coords, loading, error, requestLocation }}>
+    <LocationContext.Provider value={{ coords, detectedCountryCode, loading, error, requestLocation }}>
       {children}
     </LocationContext.Provider>
   );
@@ -130,4 +153,16 @@ export function LocationProvider({ children }) {
 
 export function useMyLocation() {
   return useContext(LocationContext);
+}
+
+/**
+ * The country to treat as "the viewer's own": the country saved on their
+ * profile if they set one, otherwise the country their coordinates are in.
+ * null when neither is known — callers must then show NO "not local" warning
+ * rather than guess.
+ */
+export function useViewerCountry() {
+  const { account } = useAuth();
+  const { detectedCountryCode } = useContext(LocationContext);
+  return account?.countryCode || detectedCountryCode || null;
 }

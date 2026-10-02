@@ -21,7 +21,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { ChevronLeft, MessageCircle, Image as ImageIcon, MoreVertical, ShieldOff, X, Phone } from "lucide-react";
 import { useAuth } from "../../../state/auth/authStore";
 import PresenceBadge from "../../components/PresenceBadge";
-import { getRelevantRentalForContact, sharePhoneForRental, getSharedPhone } from "../../../backend/supabase/rentals";
+import { getUserPhone } from "../../../backend/supabase/users";
 import {
   getOrCreateConversation,
   getMyConversations,
@@ -62,15 +62,9 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
   const [showMenu, setShowMenu] = useState(false);
   const [showSafetyTip, setShowSafetyTip] = useState(true);
 
-  // Phone-sharing — only relevant if there's an Accepted/Completed
-  // rental between the two people in this conversation (a conversation
-  // itself isn't tied to one specific rental). See
-  // backend/supabase/rentals.js's getRelevantRentalForContact file
-  // comment for the "most recent one" scoping decision.
-  const [relevantRental, setRelevantRental] = useState(null);
-  const [mySharedPhone, setMySharedPhone] = useState(false);
-  const [theirSharedPhone, setTheirSharedPhone] = useState(null);
-  const [phoneBusy, setPhoneBusy] = useState(false);
+  // The other person's phone number — shown at the top of the chat whenever
+  // they added one (no hide/show switch any more). null = none added.
+  const [theirPhone, setTheirPhone] = useState(null);
   const bottomRef = useRef(null);
   const startedInitialRef = useRef(false);
   const fileInputRef = useRef(null);
@@ -155,42 +149,17 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
       }
     : null);
 
-  // Resolves the phone-sharing state whenever the open conversation
+  // Loads the other person's phone number whenever the open conversation
   // (specifically, who the other person is) changes.
   useEffect(() => {
-    setRelevantRental(null);
-    setMySharedPhone(false);
-    setTheirSharedPhone(null);
-    if (!displayConvo?.otherUserId || !account?.id) return;
+    setTheirPhone(null);
+    if (!displayConvo?.otherUserId || !account?.id || account.isAnonymous) return undefined;
     let cancelled = false;
-    getRelevantRentalForContact(displayConvo.otherUserId)
-      .then((rental) => {
-        if (cancelled || !rental) return;
-        setRelevantRental(rental);
-        const iAmRenter = rental.renterId === account.id;
-        setMySharedPhone(iAmRenter ? rental.renterSharedPhone : rental.ownerSharedPhone);
-        return getSharedPhone(rental.id);
-      })
-      .then((phone) => { if (!cancelled && phone !== undefined) setTheirSharedPhone(phone); })
+    getUserPhone(displayConvo.otherUserId)
+      .then((phone) => { if (!cancelled) setTheirPhone(phone); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [displayConvo?.otherUserId, account?.id]);
-
-  const handleTogglePhoneShare = async () => {
-    if (!relevantRental) return;
-    setPhoneBusy(true);
-    try {
-      const next = !mySharedPhone;
-      await sharePhoneForRental(relevantRental.id, next);
-      setMySharedPhone(next);
-      const phone = await getSharedPhone(relevantRental.id);
-      setTheirSharedPhone(phone);
-    } catch (err) {
-      window.alert(err.message || "Couldn't update contact sharing. Please try again.");
-    } finally {
-      setPhoneBusy(false);
-    }
-  };
+  }, [displayConvo?.otherUserId, account?.id, account?.isAnonymous]);
 
   // Only point where a conversation actually gets created now — right
   // when a message is genuinely about to be sent, not just from
@@ -412,39 +381,18 @@ export default function Messages({ initialOtherUserId, back, visitProfile, goToH
                 </div>
               </div>
 
-              {/* Contact sharing — only shown once there's an Accepted/
-                  Completed rental between these two people (see
-                  database/schema/phone_sharing_and_presence.sql). Before
-                  that, no phone number is exchanged at all — chat is the
-                  only channel, exactly as intended. Each side must
-                  independently opt in; the number below only appears
-                  once BOTH have. */}
-              {relevantRental && (
-                <div className="shrink-0 px-4 py-3 border-b border-[#17231D]/8 bg-[#4B5D46]/5">
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Phone size={14} className="text-[#4B5D46] shrink-0" />
-                      {theirSharedPhone ? (
-                        <p className="text-[13px] text-[#17231D] font-medium truncate">{theirSharedPhone}</p>
-                      ) : (
-                        <p className="text-[12.5px] text-[#6b6f66]">
-                          {mySharedPhone
-                            ? "Waiting for them to share their number too…"
-                            : "Contact numbers are only exchanged if both of you choose to share."}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={handleTogglePhoneShare}
-                      disabled={phoneBusy}
-                      className={`text-[12px] font-medium px-3 py-1.5 rounded-full border shrink-0 disabled:opacity-60 ${
-                        mySharedPhone
-                          ? "border-red-300 text-red-600"
-                          : "border-[#4B5D46]/30 text-[#4B5D46]"
-                      }`}
+              {/* Contact number — always shown when the other person added one
+                  (the old "share my number" opt-in was removed). */}
+              {theirPhone && (
+                <div className="shrink-0 px-4 py-2.5 border-b border-[#17231D]/8 bg-[#4B5D46]/5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Phone size={14} className="text-[#4B5D46] shrink-0" />
+                    <a
+                      href={`tel:${theirPhone.replace(/[^\d+]/g, "")}`}
+                      className="text-[13px] text-[#17231D] font-medium truncate hover:underline"
                     >
-                      {phoneBusy ? "…" : mySharedPhone ? "Stop sharing my number" : "Share my contact number"}
-                    </button>
+                      {theirPhone}
+                    </a>
                   </div>
                 </div>
               )}

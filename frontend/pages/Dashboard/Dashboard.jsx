@@ -39,6 +39,7 @@ import { getPlanById } from "../../components/PlanCard";
 import { getMyListings, relistListing, delistListingManually } from "../../../backend/supabase/listings";
 import { uploadListingPhotos } from "../../../backend/supabase/storage";
 import LocationPicker from "../../components/LocationPicker";
+import CountrySelect from "../../components/CountrySelect";
 
 const CONDITIONS = ["New", "Like New", "Good", "Fair"];
 
@@ -100,6 +101,9 @@ function EditListingModal({ item, account, onClose, onSave, saving, error }) {
   const [condition, setCondition] = useState(item.condition || "Good");
   const [price, setPrice] = useState(item.price);
   const [location, setLocation] = useState(item.location || item.area || "");
+  // Older listings may have no country yet — it starts empty (never guessed)
+  // and the owner is asked to pick it when they edit.
+  const [countryCode, setCountryCode] = useState(item.countryCode || "");
   const [coords, setCoords] = useState(
     typeof item.lat === "number" && typeof item.lng === "number" ? { lat: item.lat, lng: item.lng } : null
   );
@@ -195,6 +199,7 @@ function EditListingModal({ item, account, onClose, onSave, saving, error }) {
       condition,
       price: Number(price),
       location,
+      countryCode: countryCode || null,
       lat: coords?.lat,
       lng: coords?.lng,
       desc,
@@ -297,7 +302,13 @@ function EditListingModal({ item, account, onClose, onSave, saving, error }) {
               used when creating a listing, previously only a plain text
               field here with no way to actually move the pin. */}
           <div>
-            <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className={inputClass} />
+            <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City / area" className={inputClass} />
+            <CountrySelect
+              value={countryCode}
+              onChange={setCountryCode}
+              placeholder={item.countryCode ? "Country" : "Country (please set — this listing has none yet)"}
+              className={inputClass}
+            />
             <button
               type="button"
               onClick={() => setShowLocationPicker((v) => !v)}
@@ -307,7 +318,14 @@ function EditListingModal({ item, account, onClose, onSave, saving, error }) {
             </button>
             {showLocationPicker && (
               <div className="mt-2">
-                <LocationPicker initialCoords={coords} onPick={setCoords} onLocationText={setLocation} />
+                <LocationPicker
+                initialCoords={coords}
+                onPick={setCoords}
+                onLocationText={(text, place) => {
+                  setLocation(text);
+                  if (place?.countryCode) setCountryCode(place.countryCode);
+                }}
+              />
               </div>
             )}
           </div>
@@ -532,7 +550,7 @@ function RequestRow({ request, listing, isOwner, onApprove, onDecline, onCancel,
             {listing.brand && <span>{listing.brand} · {listing.model}</span>}
             {listing.area && (
               <span className="flex items-center gap-1">
-                <MapPin size={12} /> {listing.area}
+                <MapPin size={12} /> {listing.locationFull || listing.area}{!listing.countryCode && " · country not set"}
               </span>
             )}
           </div>

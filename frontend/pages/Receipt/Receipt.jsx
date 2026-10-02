@@ -23,7 +23,7 @@ import { useAuth } from "../../../state/auth/authStore";
 import { getListingIfVisible, getOwnerAllListings } from "../../../backend/supabase/listings";
 import ItemLocationMap from "../../components/ItemLocationMap";
 import { getReviewsForRental } from "../../../backend/supabase/reviews";
-import { sharePhoneForRental, getSharedPhone } from "../../../backend/supabase/rentals";
+import { getUserPhone } from "../../../backend/supabase/users";
 
 function StatusPill({ status }) {
   const tones = {
@@ -59,46 +59,22 @@ export default function Receipt({ request, back, openItem, visitProfile }) {
 
   const isOwner = account && request?.ownerId === account.id;
 
-  // Contact sharing — this page is tied to exactly ONE rental (unlike
-  // Messages.jsx, which has to guess the "most relevant" one), so this
-  // is the simplest, most unambiguous place to offer it. Same rules:
-  // only available once the rental is Accepted/Completed, only reveals
-  // the other party's number once BOTH sides have opted in — see
-  // database/schema/phone_sharing_and_presence.sql.
-  // Returned included too — the two parties may still legitimately need
-  // to reach each other about a rental that ended early (condition
-  // questions, etc.), same as a normally Completed one.
+  // The other party's phone number — shown whenever they added one (the old
+  // "both sides must opt in" switch was removed). Kept to Accepted / Completed /
+  // Returned rentals, where the two people actually need to reach each other;
+  // the database only returns it to a signed-in, real account.
   const canShareContact = ["Accepted", "Completed", "Returned"].includes(request?.status);
-  const [mySharedPhone, setMySharedPhone] = useState(
-    isOwner ? !!request?.ownerSharedPhone : !!request?.renterSharedPhone
-  );
+  const otherPartyId = isOwner ? request?.renterId : request?.ownerId;
   const [theirPhone, setTheirPhone] = useState(null);
-  const [phoneBusy, setPhoneBusy] = useState(false);
 
   useEffect(() => {
-    if (!request?.id || !canShareContact) return;
+    if (!otherPartyId || !canShareContact || !account || account.isAnonymous) return undefined;
     let cancelled = false;
-    getSharedPhone(request.id)
+    getUserPhone(otherPartyId)
       .then((phone) => { if (!cancelled) setTheirPhone(phone); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [request?.id, canShareContact]);
-
-  const handleTogglePhoneShare = async () => {
-    if (!request?.id) return;
-    setPhoneBusy(true);
-    try {
-      const next = !mySharedPhone;
-      await sharePhoneForRental(request.id, next);
-      setMySharedPhone(next);
-      const phone = await getSharedPhone(request.id);
-      setTheirPhone(phone);
-    } catch (err) {
-      window.alert(err.message || "Couldn't update contact sharing. Please try again.");
-    } finally {
-      setPhoneBusy(false);
-    }
-  };
+  }, [otherPartyId, canShareContact, account?.id, account?.isAnonymous]);
 
   useEffect(() => {
     if (!request?.itemId) { setListingChecked(true); return; }
@@ -231,34 +207,17 @@ export default function Receipt({ request, back, openItem, visitProfile }) {
           )}
         </div>
 
-        {/* Contact sharing — only offered once this rental is Accepted/
-            Completed, and the number only shows once BOTH sides opt in.
-            Before that, chat (Messages) is the only channel — exactly as
-            intended, not an oversight. */}
-        {canShareContact && (
+        {/* Contact number — always shown when the other person added one. */}
+        {canShareContact && theirPhone && (
           <div className="p-5 border-b border-[#17231D]/8 bg-[#4B5D46]/5">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 min-w-0">
-                <Phone size={14} className="text-[#4B5D46] shrink-0" />
-                {theirPhone ? (
-                  <p className="text-[13.5px] text-[#17231D] font-medium">{theirPhone}</p>
-                ) : (
-                  <p className="text-[12.5px] text-[#6b6f66]">
-                    {mySharedPhone
-                      ? "Waiting for them to share their number too…"
-                      : "Contact numbers are only exchanged if both of you choose to share."}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={handleTogglePhoneShare}
-                disabled={phoneBusy}
-                className={`text-[12px] font-medium px-3 py-1.5 rounded-full border shrink-0 disabled:opacity-60 ${
-                  mySharedPhone ? "border-red-300 text-red-600" : "border-[#4B5D46]/30 text-[#4B5D46]"
-                }`}
+            <div className="flex items-center gap-2 min-w-0">
+              <Phone size={14} className="text-[#4B5D46] shrink-0" />
+              <a
+                href={`tel:${theirPhone.replace(/[^\d+]/g, "")}`}
+                className="text-[13.5px] text-[#17231D] font-medium hover:underline"
               >
-                {phoneBusy ? "…" : mySharedPhone ? "Stop sharing my number" : "Share my contact number"}
-              </button>
+                {theirPhone}
+              </a>
             </div>
           </div>
         )}

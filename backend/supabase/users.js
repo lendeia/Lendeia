@@ -28,7 +28,7 @@ export async function getPublicProfile(userId) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("users")
-    .select("id, name, avatar_url, username, shop_name, bio, city, last_active_at")
+    .select("id, name, avatar_url, username, shop_name, bio, city, country_code, last_active_at")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw error;
@@ -41,8 +41,27 @@ export async function getPublicProfile(userId) {
     shopName: data.shop_name || null,
     bio: data.bio || null,
     city: data.city || null,
+    countryCode: data.country_code || null,
     lastActiveAt: data.last_active_at || null,
   };
+}
+
+/**
+ * A person's phone number, shown on their store / profile page and next to
+ * a rental. There is no hide/show toggle any more: if the person added a
+ * number, it is shown. The database function get_user_phone() (see
+ * database/schema/repo/supabase/migrations/20261003000500_country_and_public_phone.sql)
+ * is the only way to read it, and only returns it to a signed-in, real
+ * (non-guest) account that isn't blocked either way with that person.
+ * @param {string} userId
+ * @returns {Promise<string|null>} null = no number added, or the viewer is a guest
+ */
+export async function getUserPhone(userId) {
+  if (!userId) return null;
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc("get_user_phone", { p_user_id: userId });
+  if (error) throw error;
+  return data || null;
 }
 
 /**

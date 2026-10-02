@@ -20,7 +20,11 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Camera, X, Check, ShieldCheck, MapPin, Map as MapIcon } from "lucide-react";
 import Button from "../../components/Button";
 import { MAX_UPLOAD_CAP, getPlanById } from "../../components/PlanCard";
-import LocationPicker, { reverseGeocode } from "../../components/LocationPicker";
+import LocationPicker from "../../components/LocationPicker";
+import CountrySelect from "../../components/CountrySelect";
+import { reverseGeocodeFull } from "../../../shared/geocode";
+import { formatLocation } from "../../../shared/countries";
+import { useViewerCountry } from "../../../state/location/locationStore";
 import { CATEGORIES } from "../../../shared/constants";
 import { useListings } from "../../../state/listings/listingsStore";
 import { useAuth } from "../../../state/auth/authStore";
@@ -77,6 +81,16 @@ export default function ListEquipment({ goToLogin, goToLegal, goToHelp }) {
   const [model, setModel] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
+  // Country of the item (ISO code). Never assumed: it starts from the owner's
+  // own country when known, is overwritten by whatever the pin / "Use my
+  // current location" says, and the owner can always change it.
+  const viewerCountry = useViewerCountry();
+  const [countryCode, setCountryCode] = useState("");
+  const [countryTouched, setCountryTouched] = useState(false);
+  useEffect(() => {
+    if (!countryTouched && !countryCode && viewerCountry) setCountryCode(viewerCountry);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewerCountry]);
   const [coords, setCoords] = useState(null); // { lat, lng }
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState(null);
@@ -147,8 +161,9 @@ export default function ListEquipment({ goToLogin, goToLegal, goToHelp }) {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         setCoords({ lat: latitude, lng: longitude });
-        const readable = await reverseGeocode(latitude, longitude);
-        setLocation(readable);
+        const place = await reverseGeocodeFull(latitude, longitude);
+        setLocation(place.text);
+        if (place.countryCode) { setCountryCode(place.countryCode); setCountryTouched(true); }
         setLocating(false);
       },
       (err) => {
@@ -173,6 +188,8 @@ export default function ListEquipment({ goToLogin, goToLegal, goToHelp }) {
     setModel("");
     setDescription("");
     setLocation("");
+    setCountryCode(viewerCountry || "");
+    setCountryTouched(false);
     setCoords(null);
     setLocationError(null);
     setShowMapPicker(false);
@@ -216,6 +233,7 @@ export default function ListEquipment({ goToLogin, goToLegal, goToHelp }) {
     if (!brand.trim()) errors.push("brand");
     if (!model.trim()) errors.push("model / code");
     if (!location.trim()) errors.push("location");
+    if (!countryCode) errors.push("the country the item is in");
     // Coordinates used to be optional (only the free-text location was
     // required) — but that meant most listings never got a real pinned
     // location, which is exactly why the Map page appeared empty and
@@ -295,6 +313,7 @@ export default function ListEquipment({ goToLogin, goToLegal, goToHelp }) {
         price: Number(price),
         category,
         location,
+        countryCode,
         lat: coords?.lat ?? null,
         lng: coords?.lng ?? null,
         condition,
@@ -475,11 +494,25 @@ export default function ListEquipment({ goToLogin, goToLegal, goToHelp }) {
           </div>
           <div>
             <input
-              placeholder="Enter your location *"
+              placeholder="City / area, e.g. Lahug, Cebu City *"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               className="w-full rounded-xl border border-[#17231D]/12 px-4 py-3 text-[14px] bg-white outline-none"
             />
+            <div className="mt-2">
+              <CountrySelect
+                value={countryCode}
+                onChange={(c) => { setCountryCode(c); setCountryTouched(true); }}
+                placeholder="Country the item is in *"
+                className="w-full rounded-xl border border-[#17231D]/12 px-4 py-3 text-[14px] bg-white outline-none"
+              />
+            </div>
+            {location.trim() && countryCode && (
+              <p className="text-[12.5px] text-[#17231D] mt-2 flex items-center gap-1.5">
+                <MapPin size={13} className="text-[#E2932E] shrink-0" />
+                Renters will see: <span className="font-medium">{formatLocation(location, countryCode)}</span>
+              </p>
+            )}
             <div className="flex items-center gap-4 mt-1.5 flex-wrap">
               <button
                 type="button"
@@ -508,7 +541,15 @@ export default function ListEquipment({ goToLogin, goToLegal, goToHelp }) {
 
             {showMapPicker && (
               <div className="mt-3">
-                <LocationPicker initialCoords={coords} onPick={setCoords} onLocationText={setLocation} />
+                <LocationPicker
+                  initialCoords={coords}
+                  onPick={setCoords}
+                  onLocationText={(text, place) => {
+                    setLocation(text);
+                    // The pin decides the country (a pin in Japan means Japan).
+                    if (place?.countryCode) { setCountryCode(place.countryCode); setCountryTouched(true); }
+                  }}
+                />
               </div>
             )}
 

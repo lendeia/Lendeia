@@ -148,6 +148,9 @@ function toAppUser(authUser, userRow) {
     name: userRow?.name || authUser.user_metadata?.full_name || authUser.user_metadata?.name || (authUser.email ? authUser.email.split("@")[0] : "Guest"),
     avatarUrl: userRow?.avatar_url ?? authUser.user_metadata?.avatar_url ?? authUser.user_metadata?.picture ?? null,
     isAnonymous: !!authUser.is_anonymous,
+    // The person's own country (ISO code) — lets every page tell whether a
+    // listing is local to them (see shared/countries.js).
+    countryCode: userRow?.country_code || null,
     // Used by Profile.jsx to only offer "Change password" for accounts
     // that actually have a password (an 'email' provider account) — a
     // Google account has nothing to change here.
@@ -213,7 +216,7 @@ export async function ensureAnonymousSession() {
   // Supabase's own auth metadata.
   const { data: userRow, error: userRowError } = await supabase
     .from("users")
-    .select("name, avatar_url, auth_provider, account_status, status_reason, suspended_until, restricted_actions")
+    .select("name, avatar_url, country_code, auth_provider, account_status, status_reason, suspended_until, restricted_actions")
     .eq("id", authUser.id)
     .maybeSingle();
   if (userRowError) throw userRowError;

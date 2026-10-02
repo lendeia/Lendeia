@@ -22,3 +22,7 @@ WRITE_ files change data. Edit only lines marked "change me".
 2. editor/owner_security/01_rls_audit                  <- every table should show rls_enabled = true
 3. editor/owner_manage/02_staff_list                   <- your account must be 'owner'
 Then follow repo/docs/DEPLOY_CHECKLIST.md.
+
+
+## Added: country + always-visible phone
+See ../../CHANGES_COUNTRY_AND_PHONE.md. Migration: repo/supabase/migrations/20261003000500_country_and_public_phone.sql (run BEFORE deploying the app code). Test: repo/supabase/tests/country_phone_test.sql. Editor snippets: owner_manage/08 and WRITE_09.

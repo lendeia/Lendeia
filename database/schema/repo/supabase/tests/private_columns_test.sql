@@ -43,7 +43,7 @@ begin
     assert not has_column_privilege('authenticated','public.users',c,'select'), 'authenticated can read private column '||c;
     assert not has_column_privilege('anon','public.users',c,'select'),          'anon can read private column '||c;
   end loop;
-  foreach c in array array['id','name','avatar_url','username','bio','city','last_active_at','shop_name','created_at','is_anonymous','account_status'] loop
+  foreach c in array array['id','name','avatar_url','username','bio','city','country_code','last_active_at','shop_name','created_at','is_anonymous','account_status'] loop
     assert has_column_privilege('authenticated','public.users',c,'select'), 'authenticated lost public column '||c;
   end loop;
 end $$;
@@ -76,8 +76,8 @@ do $$ begin
   insert into users (id, name, email) values ('00000000-0000-0000-0000-0000000000f9','Spy','spy@test.lendeia')
     on conflict (id) do update set name = excluded.name;     -- upsert pattern
   -- RLS policies that read users.is_anonymous / account_status must still evaluate for a signed-in user
-  insert into listings (owner_id, name, category, price_per_day, location, description, photo_urls, condition)
-    values (auth.uid(), 'Spy drill', 'Tools', 100, 'Cebu City', 'A listing created to test the policies still work', array['a','b','c'], 'Good');
+  insert into listings (owner_id, name, category, price_per_day, location, country_code, description, photo_urls, condition)
+    values (auth.uid(), 'Spy drill', 'Tools', 100, 'Cebu City', 'PH', 'A listing created to test the policies still work', array['a','b','c'], 'Good');
   assert (select count(*) from listings where name = 'Spy drill') = 1, 'listing select policy broke';
 end $$;
 -- someone else's row cannot be changed
@@ -91,8 +91,8 @@ reset role;
 select t_as('00000000-0000-0000-0000-0000000000f7');
 set local role authenticated;
 select t_fails($$select email from users$$, 'permission denied');
-select t_fails($$insert into listings (owner_id, name, category, price_per_day, location, description, photo_urls, condition)
-  values (auth.uid(), 'Guest drill', 'Tools', 100, 'Cebu', 'A listing a guest should not be able to create', array['a','b','c'], 'Good')$$, 'row-level security');
+select t_fails($$insert into listings (owner_id, name, category, price_per_day, location, country_code, description, photo_urls, condition)
+  values (auth.uid(), 'Guest drill', 'Tools', 100, 'Cebu', 'PH', 'A listing a guest should not be able to create', array['a','b','c'], 'Good')$$, 'row-level security');
 reset role;
 
 -- 6. logged-out visitor
