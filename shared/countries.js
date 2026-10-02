@@ -89,3 +89,16 @@ export function formatLocation(location, code) {
   if (names.includes(lastPart) || lower.endsWith(country.toLowerCase())) return loc;
   return `${loc}, ${country}`;
 }
+
+/**
+ * Should something located in `itemCountry` be shown to a viewer in `viewerCountry`?
+ *  - viewer country unknown (no profile country, no location)  -> yes, show everything
+ *  - the item's country is unknown (very old listing)           -> yes, we can't tell, so it is not hidden
+ *  - otherwise only when they are the same country.
+ */
+export function isInViewerCountry(itemCountry, viewerCountry) {
+  const v = String(viewerCountry || "").trim().toUpperCase();
+  const i = String(itemCountry || "").trim().toUpperCase();
+  if (!v || !i) return true;
+  return v === i;
+}

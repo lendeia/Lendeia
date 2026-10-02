@@ -10,7 +10,7 @@
 // ==================================================================
 import React, { useEffect, useRef, useState } from "react";
 import { Search, MapPin, LocateFixed, AlertCircle, Star, ChevronDown } from "lucide-react";
-import { useListings } from "../../../state/listings/listingsStore";
+import { useLocalListings } from "../../../state/listings/useLocalListings";
 import { useAuth } from "../../../state/auth/authStore";
 import { getListingRatingSummary, getRatingsForListings } from "../../../backend/supabase/reviews";
 import { distanceKm } from "../../../shared/geo";
@@ -58,7 +58,8 @@ const DEFAULT_CENTER = [14.5995, 120.9842];
 
 // ---- SECTION: MAIN component — Map page ----
 export default function MapPage({ openItem }) {
-  const { listings } = useListings();
+  // Only items in the viewer's own country (see state/listings/useLocalListings.js)
+  const { listings } = useLocalListings();
   const { account } = useAuth();
   const leafletReady = useLeaflet();
   const mapContainerRef = useRef(null);

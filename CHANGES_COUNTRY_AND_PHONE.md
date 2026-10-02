@@ -31,6 +31,17 @@
   editor/owner_manage/WRITE_09) and the label goes away.
 - Every card in Browse, Home, Saved and a store page uses the same ListingCard, so they all show the same text.
 
+## Items only show for your country
+- Your country = the one you set in Profile; if you haven't set one, the country your location was detected in. Profile wins: someone
+  located in the Philippines who sets their country to the USA sees USA items and no Philippine items.
+- **Browse (items), Home "near you" and the Map** only list items in that country. **Shops & people** results follow the same rule.
+- Your OWN listings are never hidden from you, and listings whose country is unknown (very old ones) are not hidden either.
+- Browse says which country you're seeing ("Showing items in Philippines"). The "N in other countries hidden" count and the "change your country in Profile" hint were removed.
+- If neither a profile country nor a location is known, nothing is hidden and Browse says so; the country dropdown only appears in that case.
+- Not filtered on purpose (so nothing breaks): your Dashboard, Saved items, a store page you open, and a listing opened from a link or chat.
+- New: state/listings/useLocalListings.js and isInViewerCountry() in shared/countries.js. `useListings()` is unchanged.
+- Location is still only used after the person turns it on (button), as before; a saved profile country needs no location at all.
+
 ## Phone number
 - The "Share my contact number / Stop sharing" switch is **gone** from Messages and Receipt.
 - **Store page**: new "Store info" box (shops) / "Customer info" box (everyone else) with the place and the phone number,

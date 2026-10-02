@@ -17,11 +17,11 @@ import { Search, ChevronDown, LocateFixed, Store as StoreIcon, MapPin } from "lu
 import { searchPeople, MIN_PEOPLE_QUERY } from "../../../backend/supabase/people";
 import ListingCard from "../../components/ListingCard";
 import { CATEGORIES } from "../../../shared/constants";
-import { useListings } from "../../../state/listings/listingsStore";
+import { useLocalListings } from "../../../state/listings/useLocalListings";
 import { useMyLocation } from "../../../state/location/locationStore";
 import { useSavedListings } from "../../../state/saved/savedStore";
 import { distanceKm } from "../../../shared/geo";
-import { countryName, countryFlag, formatLocation } from "../../../shared/countries";
+import { countryName, countryFlag, formatLocation, isInViewerCountry } from "../../../shared/countries";
 import { getRatingsForListings } from "../../../backend/supabase/reviews";
 
 // Category as a single dropdown option list, matching the same shape
@@ -102,7 +102,9 @@ function FilterDropdown({ label, options, selected, onSelect, renderLabel }) {
 
 // ---- SECTION: MAIN component — Browse page (search/filter/sort listings) ----
 export default function Browse({ openItem, visitStore, initialSearch, initialCategory }) {
-  const { listings } = useListings();
+  // Items are limited to the viewer's own country (profile country, else the
+  // country their location is in). With neither known, all countries show.
+  const { listings, viewerCountry } = useLocalListings();
   const { savedIds, toggleSave } = useSavedListings();
   const { coords: myCoords, loading: locating, error: locationError, requestLocation } = useMyLocation();
 
@@ -152,12 +154,12 @@ export default function Browse({ openItem, visitStore, initialSearch, initialCat
     setPeopleLoading(true);
     const timer = setTimeout(() => {
       searchPeople(peopleQuery)
-        .then((rows) => { if (!cancelled) setPeople(rows); })
+        .then((rows) => { if (!cancelled) setPeople(rows.filter((r) => isInViewerCountry(r.countryCode, viewerCountry))); })
         .catch((err) => { if (!cancelled) { setPeople([]); setPeopleError(err.message || "Search failed. Please try again."); } })
         .finally(() => { if (!cancelled) setPeopleLoading(false); });
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [mode, peopleQuery, peopleSearchable]);
+  }, [mode, peopleQuery, peopleSearchable, viewerCountry]);
 
   const [search, setSearch] = useState(startsWithAt ? "" : (initialSearch || ""));
   // Re-sync if navigated here again from Home with a new search term —
@@ -275,6 +277,15 @@ export default function Browse({ openItem, visitStore, initialSearch, initialCat
   return (
     <div className={`px-6 md:px-12 py-8 pb-24 md:pb-12 transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}>
       <h1 className="font-serif text-[26px] md:text-[30px] text-[#17231D]">{mode === "people" ? "Find shops & people" : "Browse items"}</h1>
+      {viewerCountry ? (
+        <p className="text-[13px] text-[#6b6f66] mt-1.5">
+          Showing {mode === "people" ? "shops & people" : "items"} in {countryFlag(viewerCountry)} {countryName(viewerCountry)}
+        </p>
+      ) : (
+        <p className="text-[13px] text-[#6b6f66] mt-1.5">
+          Showing items from every country. Set your country in Profile (or enable location) to see only items near you.
+        </p>
+      )}
 
       {/* Sticky filter panel — search, categories, and price/distance
           all stay fixed in place and usable while scrolling through
@@ -333,7 +344,7 @@ export default function Browse({ openItem, visitStore, initialSearch, initialCat
               selected={CATEGORY_OPTIONS.indexOf(cat)}
               onSelect={(idx) => setCat(CATEGORY_OPTIONS[idx])}
             />
-            {countryOptions.length > 2 && (
+            {!viewerCountry && countryOptions.length > 2 && (
               <FilterDropdown
                 options={countryOptions}
                 selected={safeCountryIdx}

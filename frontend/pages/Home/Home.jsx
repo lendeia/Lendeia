@@ -27,7 +27,7 @@ import grassTrimmerPhoto from "../../assets/items/grass-trimmer.jpg";
 // horizontally instead, so the two pages don't feel like the same
 // animation repeated.
 const HERO_IMAGES = [tentPhoto, grassTrimmerPhoto, cameraPhoto, pressureWasherPhoto];
-import { useListings } from "../../../state/listings/listingsStore";
+import { useLocalListings } from "../../../state/listings/useLocalListings";
 import { useAuth } from "../../../state/auth/authStore";
 import { useMyLocation } from "../../../state/location/locationStore";
 import { distanceKm } from "../../../shared/geo";
@@ -49,7 +49,8 @@ export default function Home({ setPage, openItem, goToBrowse }) {
     const id = setInterval(() => setHeroIdx((i) => (i + 1) % HERO_IMAGES.length), 5000);
     return () => clearInterval(id);
   }, []);
-  const { listings } = useListings();
+  // Only items in the viewer's own country (see state/listings/useLocalListings.js)
+  const { listings } = useLocalListings();
 
   // Live name-matching suggestions as you type — previously this input
   // did nothing at all, not even hold a value.

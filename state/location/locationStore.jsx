@@ -26,7 +26,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { reverseGeocodeFull } from "../../shared/geocode";
 import { useAuth } from "../auth/authStore";
 
-const LocationContext = createContext({
+export const LocationContext = createContext({
   coords: null,
   detectedCountryCode: null,
   loading: false,
