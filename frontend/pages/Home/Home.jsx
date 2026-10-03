@@ -303,7 +303,7 @@ export default function Home({ setPage, openItem, goToBrowse }) {
             </div>
           )}
           {visibleListings.map((item) => (
-            <ListingCard key={item.id} item={item} onOpen={openItem} isSaved={savedIds.has(item.id)} onToggleSave={toggleSave} tall />
+            <ListingCard key={item.id} item={item} onOpen={openItem} isSaved={savedIds.has(item.id)} onToggleSave={toggleSave} />
           ))}
         </div>
       </section>
