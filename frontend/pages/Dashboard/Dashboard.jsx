@@ -173,8 +173,8 @@ function EditListingModal({ item, account, onClose, onSave, saving, error }) {
       setPhotoError("Product name must be between 3 and 120 characters.");
       return;
     }
-    if (totalPhotoCount < 3) {
-      setPhotoError("A listing needs at least 3 photos.");
+    if (totalPhotoCount < 1) {
+      setPhotoError("A listing needs at least 1 photo.");
       return;
     }
     let finalPhotos = existingPhotos;
@@ -261,7 +261,7 @@ function EditListingModal({ item, account, onClose, onSave, saving, error }) {
           </div>
           {photoError && <p className="text-[11.5px] text-red-600 mt-1.5">{photoError}</p>}
           <p className="text-[11px] text-[#8A9089] mt-1.5">
-            At least 3 photos required. New photos (outlined) upload when you save.
+            At least 1 photo required. New photos (outlined) upload when you save.
           </p>
         </div>
 

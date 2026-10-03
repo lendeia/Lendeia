@@ -55,7 +55,7 @@ const GUIDES = [
     title: "Listing an item",
     steps: [
       "Go to List an Item, fill in the brand/model/category/condition and a real description.",
-      "Upload at least 3 real photos of your actual item — stock photos aren't allowed.",
+      "Upload at least 1 real photo of your actual item — stock photos aren't allowed.",
       "Pin the exact location on the map and set your daily rental price (₱0–₱100,000).",
       "Your listing stays active for your plan's length (Free: 7 days, Standard: 14, Pro: 30), then needs relisting.",
     ],

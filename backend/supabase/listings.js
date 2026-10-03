@@ -124,7 +124,7 @@ export async function getActiveListings() {
 
 /**
  * Creates a new listing owned by `ownerId`. All the stricter-rule CHECK
- * constraints in database/schema/stricter_listing_rules.sql (min 3 photos,
+ * constraints in database/schema/stricter_listing_rules.sql (min 1 photo,
  * description length, category whitelist, per-plan photo/listing caps,
  * duplicate-listing guard) apply here automatically — a violation throws
  * a Postgres error with a human-readable `message`, which the UI
@@ -195,8 +195,8 @@ export async function updateListing(id, patch) {
   // uploaded ones), and this just writes it. The first photo in the
   // array is always treated as the primary/cover image.
   if (patch.photos !== undefined) {
-    if (!Array.isArray(patch.photos) || patch.photos.length < 3) {
-      throw new Error("A listing needs at least 3 photos.");
+    if (!Array.isArray(patch.photos) || patch.photos.length < 1) {
+      throw new Error("A listing needs at least 1 photo.");
     }
     update.photo_urls = patch.photos;
     update.primary_image_url = patch.photos[0];

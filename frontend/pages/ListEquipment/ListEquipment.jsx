@@ -244,8 +244,8 @@ export default function ListEquipment({ goToLogin, goToLegal, goToHelp }) {
     if (!description.trim() || description.trim().length < 20) {
       errors.push("a description of at least 20 characters");
     }
-    if (photos.length < 3) {
-      errors.push("at least 3 real photos of the item");
+    if (photos.length < 1) {
+      errors.push("at least 1 real photo of the item");
     }
     // Price is now allowed to be 0 (free listings) — was previously
     // rejected outright, and rejected by the database too (see
@@ -431,7 +431,7 @@ export default function ListEquipment({ goToLogin, goToLegal, goToHelp }) {
 
           <div>
             <div className="flex items-center justify-between">
-              <label className="text-[13px] text-[#6b6f66]">Photos <span className="text-[#a15c1f]">* at least 3 required</span></label>
+              <label className="text-[13px] text-[#6b6f66]">Photos <span className="text-[#a15c1f]">* at least 1 required</span></label>
               <span className="text-[12px] text-[#8A9089]">{photos.length}/{MAX_UPLOAD_CAP}</span>
             </div>
             <div className="grid grid-cols-3 gap-3 mt-1.5">

@@ -155,7 +155,7 @@ create trigger trg_sync_is_anonymous
 alter table listings
   drop constraint if exists listings_min_photos;
 alter table listings
-  add constraint listings_min_photos check (array_length(photo_urls, 1) >= 3);
+  add constraint listings_min_photos check (array_length(photo_urls, 1) >= 1);
 
 alter table listings
   drop constraint if exists listings_name_length,
