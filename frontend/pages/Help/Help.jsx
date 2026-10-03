@@ -11,13 +11,29 @@
 //   truth in backend/supabase/support.js's SUPPORT_CATEGORIES.
 // ==================================================================
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronLeft, CheckCircle2, ImagePlus, X } from "lucide-react";
+import { ChevronLeft, CheckCircle2, ImagePlus, X, Instagram } from "lucide-react";
 import { useAuth } from "../../../state/auth/authStore";
 import { SUPPORT_CATEGORIES, submitSupportRequest, getMySupportRequests } from "../../../backend/supabase/support";
 import { MAX_REPORT_PHOTOS, validateReportPhoto } from "../../../backend/supabase/storage";
 import AttachmentThumbs from "../../components/AttachmentThumbs";
 
 const STATUS_LABEL = { open: "Open", in_progress: "In progress", resolved: "Resolved" };
+
+// lucide-react has no TikTok icon, so this is a small inline SVG that
+// accepts the same size/className props the lucide icons do.
+function TikTok({ size = 15, className = "" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M19.6 6.7a4.8 4.8 0 0 1-3.8-4.2V2h-3.4v13.4a2.9 2.9 0 1 1-2-2.8V9.1a6.3 6.3 0 1 0 5.4 6.3V9a8.1 8.1 0 0 0 4.7 1.5V7.1a4.8 4.8 0 0 1-.9-.4z" />
+    </svg>
+  );
+}
+
+// Social pages shown under the Contact Support categories.
+const SOCIAL_LINKS = [
+  ["Instagram", Instagram, "https://www.instagram.com/lendeia.business"],
+  ["TikTok", TikTok, "https://www.tiktok.com/@lendeia"],
+];
 
 // Real how-to guides — what a button like "How does this work?" should
 // actually lead to, instead of a vague tooltip with nowhere to go.
@@ -267,6 +283,23 @@ export default function Help({ back, initialGuideId, initialCategory, initialLis
                 <span className="text-[13.5px] font-medium text-[#17231D]">{label}</span>
               </button>
             ))}
+          </div>
+
+          <div className="mt-8">
+            <p className="text-[12.5px] font-medium text-[#6b6f66] mb-3">Follow us</p>
+            <div className="flex flex-wrap gap-2.5">
+              {SOCIAL_LINKS.map(([label, Icon, url]) => (
+                <a
+                  key={label}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-full border border-[#17231D]/15 text-[13px] text-[#17231D] hover:border-[#17231D]/35 transition-colors"
+                >
+                  <Icon size={15} className="text-[#E2932E]" /> {label}
+                </a>
+              ))}
+            </div>
           </div>
         </>
       )}

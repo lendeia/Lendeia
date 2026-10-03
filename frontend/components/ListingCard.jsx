@@ -29,6 +29,7 @@ import React from "react";
 import { MapPin, Star, Heart, Globe2 } from "lucide-react";
 import { formatLocation, countryName } from "../../shared/countries";
 import { useViewerCountry } from "../../state/location/locationStore";
+import { useAuth } from "../../state/auth/authStore";
 
 // `tall` gives the card a taller photo and roomier text block (used by
 // Home's "Items near you"). On a phone the photo is 3:4 portrait, since a
@@ -40,6 +41,9 @@ export default function ListingCard({ item, onOpen, isSaved, onToggleSave, tall 
   // United States") — distance is extra detail, no longer a replacement for it.
   const placeText = item.locationFull || formatLocation(item.location || item.area, item.countryCode);
   const viewerCountry = useViewerCountry();
+  // Guests (no account, or an anonymous session) are read-only: no save heart.
+  const { account } = useAuth();
+  const isGuest = !account || account.isAnonymous;
   const isAbroad = !!(item.countryCode && viewerCountry && item.countryCode !== viewerCountry);
   const hasRealRating = typeof item.realReviewCount === "number" && item.realReviewCount > 0;
 
@@ -53,7 +57,7 @@ export default function ListingCard({ item, onOpen, isSaved, onToggleSave, tall 
       <div className={`relative ${tall ? "aspect-[3/4] md:aspect-square" : "aspect-[4/3]"} rounded-3xl overflow-hidden bg-[#F0EEE9]`}>
         <img src={item.img} alt={item.name} className="w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-500 ease-out" />
         <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        {onToggleSave && (
+        {onToggleSave && !isGuest && (
           <button
             onClick={(e) => { e.stopPropagation(); onToggleSave(item.id); }}
             className="absolute top-2.5 left-2.5 w-7 h-7 rounded-full bg-white/95 backdrop-blur-sm shadow-sm flex items-center justify-center"

@@ -221,12 +221,14 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
               <p className="text-[11.5px] text-[#8A9089]">
                 {new Date(r.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
               </p>
-              <button
-                onClick={() => handleReportReview(r.id)}
-                className="text-[11px] text-[#8A9089] hover:text-red-600 underline"
-              >
-                Report
-              </button>
+              {account && !account.isAnonymous && (
+                <button
+                  onClick={() => handleReportReview(r.id)}
+                  className="text-[11px] text-[#8A9089] hover:text-red-600 underline"
+                >
+                  Report
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -322,7 +324,7 @@ export default function OwnerStore({ ownerId, back, openItem, messageUser, visit
             </div>
 
             <div className="ml-auto">
-              {account?.id !== ownerId && (
+              {account && !account.isAnonymous && account.id !== ownerId && (
                 <button
                   onClick={() => {
                     if (!account || account.isAnonymous) {

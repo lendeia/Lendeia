@@ -34,8 +34,27 @@ const LEGAL_LINKS = [
 // more line here, not new markup in the JSX below. Icon is the
 // matching lucide-react component (already imported above for the
 // common ones); label is what shows next to it.
+// lucide-react has no TikTok icon, so this is a small inline SVG that
+// accepts the same size/className props the lucide icons do.
+function TikTok({ size = 15, className = "" }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M19.6 6.7a4.8 4.8 0 0 1-3.8-4.2V2h-3.4v13.4a2.9 2.9 0 1 1-2-2.8V9.1a6.3 6.3 0 1 0 5.4 6.3V9a8.1 8.1 0 0 0 4.7 1.5V7.1a4.8 4.8 0 0 1-.9-.4z" />
+    </svg>
+  );
+}
+
 const SOCIAL_LINKS = [
   ["Facebook", Facebook, "https://www.facebook.com/share/1EjR5TH8pP/?mibextid=wwXIfr"],
+  ["Instagram", Instagram, "https://www.instagram.com/lendeia.business"],
+  ["TikTok", TikTok, "https://www.tiktok.com/@lendeia"],
 ];
 
 export default function Footer({ goToLegal, goToHelp }) {

@@ -237,6 +237,9 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
   // enforces the same rule regardless of what the UI does (see
   // database/schema/self_rental_and_fields.sql).
   const isOwnListing = account && item.ownerId === account.id;
+  // Guests are read-only: they can view items, prices, ratings and reviews,
+  // but Save / Message / Report are hidden and Request only points to sign-in.
+  const isGuest = !account || account.isAnonymous;
 
   // Genuinely locked for anyone but the owner — matches OwnerStore.jsx's
   // locked card (no click-through there anymore either). This catches
@@ -394,7 +397,7 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
             which is what makes this URL actually open to this exact
             item for whoever clicks it, not just the homepage. */}
         <div className="flex items-center gap-2">
-          {!isOwnListing && (
+          {!isOwnListing && !isGuest && (
             <button
               onClick={() => toggleSave(item.id)}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-full border border-[#17231D]/15 text-[#17231D] text-[13.5px] font-medium hover:bg-[#17231D]/5 transition-colors"
@@ -603,7 +606,7 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
             </div>
             {!isOwnListing && item.ownerId && (
               <div className="flex flex-col gap-1.5 shrink-0">
-                <button
+                {!isGuest && (<button
                   onClick={() => {
                     // Anonymous users can browse and view owner cards fine,
                     // but messaging needs a real, recoverable identity —
@@ -619,7 +622,7 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
                   className="text-[12.5px] font-medium text-[#17231D] px-3 py-2 rounded-full border border-[#17231D]/20 hover:bg-[#17231D]/5 transition-colors"
                 >
                   Message
-                </button>
+                </button>)}
                 <button
                   onClick={() => visitStore?.(item.ownerId)}
                   className="text-[12.5px] font-medium text-[#4B5D46] px-3 py-2 rounded-full border border-[#4B5D46]/25 hover:bg-[#4B5D46]/5 transition-colors"
@@ -634,7 +637,7 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
               "Report a User" only existed as generic categories on the
               main Help page with no way to jump there pre-filled with
               which listing/user, from the listing itself. */}
-          {!isOwnListing && (
+          {!isOwnListing && !isGuest && (
             <div className="flex items-center gap-4 mt-2">
               <button
                 onClick={() => goToHelp?.(null, { category: "report_listing", listingId: item.id })}
