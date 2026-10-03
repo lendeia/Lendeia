@@ -299,6 +299,26 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
   );
   const rentalTotalCost = rentalDays * (Number(item.price) || 0);
 
+  // Single source of truth for the date rules. The <input type="date">
+  // min/max attributes only restrict the desktop picker UI — mobile
+  // browsers (and typing/clearing the field) can still produce
+  // out-of-range or empty values, so the rules are enforced in code too.
+  const isValidISODate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v || "") && !Number.isNaN(new Date(v).getTime());
+  const addDaysISO = (iso, days) => {
+    const d = new Date(iso);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+  const getDateError = (start, end) => {
+    if (!isValidISODate(start) || !isValidISODate(end)) return "Please choose both a start date and a return date.";
+    if (start < todayISO) return "The start date can't be in the past.";
+    if (end <= start) return "Please choose a return date after the start date.";
+    if (end > addDaysISO(start, RENTAL_DURATION_DAYS)) {
+      return `The return date can be at most ${RENTAL_DURATION_DAYS} days after the start date.`;
+    }
+    return null;
+  };
+
   const handleRequest = async () => {
     if (!account) {
       goToLogin?.();
@@ -322,8 +342,9 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
       window.alert("This item is not currently listed and can't be requested right now.");
       return;
     }
-    if (new Date(rentalEndDate) <= new Date(rentalStartDate)) {
-      window.alert("Please choose a return date after the start date.");
+    const dateError = getDateError(rentalStartDate, rentalEndDate);
+    if (dateError) {
+      window.alert(dateError);
       return;
     }
     if (!agreedToRentalTerms) {
@@ -455,19 +476,17 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
                     min={todayISO}
                     max={maxEndDateISO}
                     onChange={(e) => {
-                      const v = e.target.value;
+                      let v = e.target.value;
+                      // Empty/invalid (e.g. the field was cleared on
+                      // mobile) -> fall back to today instead of
+                      // crashing or accepting a blank date.
+                      if (!isValidISODate(v)) v = todayISO;
+                      // Typed/pasted dates can ignore min — clamp them.
+                      if (v < todayISO) v = todayISO;
                       setRentalStartDate(v);
                       // Always jumps to the FULL fixed rental length
-                      // from the new start date — not just "at least
-                      // one more day than before", which could leave a
-                      // much shorter rental sitting there than what's
-                      // actually being offered (e.g. picking day 3
-                      // should give a return date of day 10 on a 7-day
-                      // plan, not day 4 just because that was one day
-                      // past the old start date).
-                      const next = new Date(v);
-                      next.setDate(next.getDate() + RENTAL_DURATION_DAYS);
-                      setRentalEndDate(next.toISOString().slice(0, 10));
+                      // from the new start date (see note above).
+                      setRentalEndDate(addDaysISO(v, RENTAL_DURATION_DAYS));
                     }}
                     className="w-full mt-1 rounded-lg border border-[#17231D]/15 px-3 py-2 text-[13.5px] outline-none"
                   />
@@ -479,7 +498,17 @@ export default function Details({ item, back, goToLogin, visitStore, goToDashboa
                     value={rentalEndDate}
                     min={rentalStartDate}
                     max={maxEndDateISO}
-                    onChange={(e) => setRentalEndDate(e.target.value)}
+                    onChange={(e) => {
+                      let v = e.target.value;
+                      // Clamp into [start + 1 day, start + plan length].
+                      // min/max alone aren't enforced on mobile.
+                      const lo = addDaysISO(rentalStartDate, 1);
+                      const hi = addDaysISO(rentalStartDate, RENTAL_DURATION_DAYS);
+                      if (!isValidISODate(v)) v = hi;
+                      if (v < lo) v = lo;
+                      if (v > hi) v = hi;
+                      setRentalEndDate(v);
+                    }}
                     className="w-full mt-1 rounded-lg border border-[#17231D]/15 px-3 py-2 text-[13.5px] outline-none"
                   />
                 </label>
