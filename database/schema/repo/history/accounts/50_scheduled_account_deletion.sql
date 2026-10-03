@@ -22,6 +22,11 @@
 --   anonymousAuth.js's ensureAnonymousSession() (the reactivate-on-
 --   login check); supabase/functions/delete-account/index.ts (updated
 --   to match).
+-- NOTE      :
+--   pg_cron must already be enabled (Dashboard > Database >
+--   Extensions). This file does NOT install it or change its
+--   permissions - doing that here fails on Supabase with
+--   "2BP01: dependent privileges exist".
 -- ==================================================================
 
 alter table users
@@ -113,14 +118,11 @@ end;
 $$;
 
 -- ---- Run it automatically, once a day ----
-create extension if not exists pg_cron;
-grant usage on schema cron to postgres;
-grant all privileges on all tables in schema cron to postgres;
-
+-- (pg_cron is enabled from the dashboard, so no create extension / grants here)
 select cron.unschedule(jobid) from cron.job where jobname = 'finalize-scheduled-deletions';
 select cron.schedule(
   'finalize-scheduled-deletions',
-  '0 3 * * *', -- 03:00 UTC daily - low-traffic hours
+  '0 3 * * *', -- 03:00 UTC daily (11:00 AM in Cebu). Use '0 19 * * *' for 3:00 AM Cebu time.
   $$select finalize_scheduled_deletions();$$
 );
 

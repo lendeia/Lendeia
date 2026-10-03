@@ -1,25 +1,33 @@
 -- ==================================================================
 -- FILE TYPE : SUPABASE SCHEMA — TABLE
 -- PURPOSE   :
---   Extended profile data (rating, review/rental counts) kept separate from
---   `users` (auth identity), plus the saved_listings bookmark join table.
+--   Equipment listings owned/managed by users. Mirrors the shape produced by
+--   backend/listings/createListing.js and consumed by frontend Browse/Map/Details.
 -- CONNECTS TO :
---   profiles.user_id -> users(id). saved_listings joins users<->listings.
---   RLS in database/policies/profiles.sql. Queries in database/queries/profiles.sql.
+--   FKs to users(id). Row-level security lives in database/policies/listings.sql.
+--   Prewritten CRUD SQL lives in database/queries/listings.sql.
+--   See database/schema/stricter_listing_rules.sql for extra validation added
+--   on top of this base table (min photos, price ceiling, plan limits, etc).
 -- ==================================================================
--- Extended profile data, kept separate from `users` (auth identity)
-create table if not exists profiles (
-  user_id uuid primary key references users(id) on delete cascade,
-  rating numeric(2,1) not null default 0,
-  review_count integer not null default 0,
-  rental_history_count integer not null default 0,
+-- Equipment listings owned/managed by users
+create table if not exists listings (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references users(id) on delete cascade,
+  name text not null,
+  brand text,
+  model text,
+  category text not null,
+  price_per_day numeric(10,2) not null check (price_per_day > 0),
+  condition text not null default 'Good',
+  description text,
+  location text not null,
+  latitude double precision,
+  longitude double precision,
+  primary_image_url text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
--- Saved/bookmarked listings, many-to-many
-create table if not exists saved_listings (
-  user_id uuid not null references users(id) on delete cascade,
-  listing_id uuid not null references listings(id) on delete cascade,
-  created_at timestamptz not null default now(),
-  primary key (user_id, listing_id)
-);
+create index if not exists idx_listings_owner on listings(owner_id);
+create index if not exists idx_listings_category on listings(category);
