@@ -1307,6 +1307,11 @@ export default function Dashboard({ openItem, visitProfile, viewReceipt }) {
     setActingRequestId(id);
     try {
       await returnRental(id);
+      // An early return now delists the item server-side (same as
+      // Completed), so refresh both this page's "My Items" and the
+      // shared public feed (Browse/Home/Map) right away.
+      refreshMyListings();
+      refreshSharedListings();
     } catch (err) {
       window.alert(err.message || "Couldn't return this item. Please try again.");
     } finally {
